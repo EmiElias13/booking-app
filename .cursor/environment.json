@@ -1,0 +1,17 @@
+{
+  "name": "booking-app",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "npm start",
+      "description": "Serves the booking app at http://localhost:3000 (npx serve)."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web server",
+      "port": 3000
+    }
+  ]
+}
