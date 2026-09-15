@@ -88,7 +88,7 @@ function syncPaymentMethod() {
 
 function updateTotal() {
   const service = getService(serviceSelect.value);
-  totalAmount.textContent = service ? formatPrice(service.price) : '—';
+  totalAmount.textContent = formatPrice(service?.price ?? 0);
 }
 
 function setError(field, message) {
