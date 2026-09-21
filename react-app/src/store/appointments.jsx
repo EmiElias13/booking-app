@@ -1,54 +1,59 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import {
-  createAppointment,
-  isSupabaseConfigured,
-  listAppointments,
-  listSlots,
-  updateAppointment,
-} from '../lib/supabase.js'
-import { useAuth } from './auth.jsx'
 
-const CONFIG_ERROR =
-  'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.'
-const REACH_ERROR = 'Cannot reach the booking service. Check your Supabase URL and anon key.'
+const API_BASE = '/api'
 
 const AppointmentsContext = createContext(null)
 
+async function apiFetch(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    const error = new Error('Request failed')
+    error.status = response.status
+    error.fieldErrors = body?.errors ?? {}
+    throw error
+  }
+  return body
+}
+
 export function AppointmentsProvider({ children }) {
-  const { isPhysio } = useAuth()
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState(null)
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured) {
-      setApiError(CONFIG_ERROR)
-      setLoading(false)
-      return
-    }
-
     try {
-      setAppointments(isPhysio ? await listAppointments() : await listSlots())
+      setAppointments(await apiFetch('/appointments'))
       setApiError(null)
-    } catch (error) {
-      setApiError(error.status === 401 ? 'Physio sign-in required.' : REACH_ERROR)
+    } catch {
+      setApiError('Cannot reach the booking service. Is the Flask API running?')
     } finally {
       setLoading(false)
     }
-  }, [isPhysio])
+  }, [])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
   const requestSlot = useCallback(async (request) => {
-    const appointment = await createAppointment(request)
+    const appointment = await apiFetch('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
     setAppointments((current) => [...current, appointment])
     return appointment
   }, [])
 
   const decide = useCallback(async (id, status, physioNote = '') => {
-    const updated = await updateAppointment(id, { status, physioNote })
+    const updated = await apiFetch(`/appointments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, physioNote }),
+    })
     setAppointments((current) =>
       current.map((appointment) => (appointment.id === id ? updated : appointment)),
     )

@@ -31,7 +31,7 @@ export default function Home() {
     const email = form.email.trim().toLowerCase()
     if (!email) return []
     return appointments
-      .filter((appointment) => appointment.email?.toLowerCase() === email)
+      .filter((appointment) => appointment.email.toLowerCase() === email)
       .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
   }, [appointments, form.email])
 
