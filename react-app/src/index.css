@@ -78,19 +78,25 @@ h2 {
   gap: 8px;
 }
 
-.nav a {
+.nav a,
+.nav button {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  font: inherit;
   font-size: 14px;
   font-weight: 500;
   color: var(--muted);
   text-decoration: none;
+  cursor: pointer;
 }
 
-.nav a:hover {
+.nav a:hover,
+.nav button:hover {
   background: #eaeef3;
 }
 

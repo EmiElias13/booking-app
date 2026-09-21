@@ -1,10 +1,14 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Approvals from './pages/Approvals.jsx'
+import Login from './pages/Login.jsx'
+import RequirePhysio from './middleware/RequirePhysio.jsx'
 import { useAppointments } from './store/appointments.jsx'
+import { useAuth } from './store/auth.jsx'
 
 export default function App() {
   const { appointments } = useAppointments()
+  const { isPhysio, signOut } = useAuth()
   const pendingCount = appointments.filter((appointment) => appointment.status === 'pending').length
 
   return (
@@ -21,17 +25,34 @@ export default function App() {
           <NavLink to="/" end>
             Book a slot
           </NavLink>
-          <NavLink to="/approvals">
-            Physio approvals
-            {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
-          </NavLink>
+          {isPhysio ? (
+            <>
+              <NavLink to="/approvals">
+                Physio approvals
+                {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+              </NavLink>
+              <button type="button" onClick={signOut}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <NavLink to="/login">Physio sign in</NavLink>
+          )}
         </nav>
       </header>
 
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/approvals" element={<Approvals />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/approvals"
+            element={
+              <RequirePhysio>
+                <Approvals />
+              </RequirePhysio>
+            }
+          />
         </Routes>
       </main>
     </div>
