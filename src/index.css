@@ -55,6 +55,7 @@ h2 {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -270,6 +271,7 @@ textarea {
   padding: 14px 16px;
   border-radius: var(--radius);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .banner-success {
@@ -341,6 +343,11 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.request-list li strong {
+  overflow-wrap: anywhere;
 }
 
 .stat-row {
@@ -426,6 +433,7 @@ textarea {
 .approval-meta dd {
   margin: 2px 0 0;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .approval-notes {
@@ -436,6 +444,7 @@ textarea {
   background: #f8f4fb;
   font-size: 14px;
   color: #34485a;
+  overflow-wrap: anywhere;
 }
 
 .approval-actions {
@@ -461,4 +470,102 @@ textarea {
   border-radius: var(--radius);
   color: var(--muted);
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 16px max(16px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+
+  .brand-logo {
+    height: 60px;
+  }
+
+  .nav a,
+  .nav button {
+    min-height: 44px;
+  }
+
+  .hero h1 {
+    font-size: 22px;
+  }
+
+  .page {
+    padding-top: 20px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .slot {
+    min-height: 44px;
+    padding: 12px 6px;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .booking-form .btn-primary {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .request-list li {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .request-list li .status {
+    margin-left: auto;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat {
+    padding: 10px 12px;
+  }
+
+  .chip {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .approval-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .approval-buttons {
+    flex-direction: column;
+  }
+
+  .approval-buttons .btn {
+    width: 100%;
+  }
+}
+
+@media (hover: none) {
+  .slot:active:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    background: var(--accent-deep);
+  }
+
+  .btn-ghost:active:not(:disabled) {
+    background: #f3eef6;
+  }
 }
