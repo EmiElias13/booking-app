@@ -113,6 +113,7 @@ export default function Home() {
               value={form.clientName}
               onChange={(event) => updateField('clientName', event.target.value)}
               placeholder="Nombre"
+              autoComplete="name"
               aria-invalid={Boolean(errors.clientName)}
             />
             {errors.clientName && <small className="error">{errors.clientName}</small>}
@@ -125,6 +126,7 @@ export default function Home() {
               value={form.email}
               onChange={(event) => updateField('email', event.target.value)}
               placeholder="ejemplo@gmail.com"
+              autoComplete="email"
               aria-invalid={Boolean(errors.email)}
             />
             {errors.email && <small className="error">{errors.email}</small>}
@@ -133,9 +135,11 @@ export default function Home() {
           <label className="field">
             <span>Telefono <em>(opcional)</em></span>
             <input
+              type="tel"
               value={form.phone}
               onChange={(event) => updateField('phone', event.target.value)}
               placeholder="686 123 456"
+              autoComplete="tel"
             />
           </label>
 

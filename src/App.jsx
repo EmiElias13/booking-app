@@ -38,9 +38,7 @@ export default function App() {
                 Cerrar sesión
               </button>
             </>
-          ) : (
-            <NavLink to="/about">Acerca de nosotros</NavLink>
-          )}
+          ) : null}
         </nav>
       </header>
 
