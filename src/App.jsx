@@ -16,7 +16,7 @@ export default function App() {
       <header className="app-header">
         <div className="brand">
           <NavLink to="/">
-            <img className="brand-logo" src="/logo.png" alt="Rehabireb, centro fisioterapéutico integral" />
+            <img className="brand-logo" src={`${import.meta.env.BASE_URL}logo.png`} alt="Rehabireb, centro fisioterapéutico integral" />
           </NavLink>
         </div>
         <nav className="nav">
