@@ -15,28 +15,31 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">◎</span>
-          <div>
-            <strong>Movewell Physio</strong>
-            <span className="brand-sub">Booking</span>
-          </div>
+          <NavLink to="/">
+            <img className="brand-logo" src="/logo.png" alt="Rehabireb, centro fisioterapéutico integral" />
+          </NavLink>
         </div>
         <nav className="nav">
+          {
+          /* 
           <NavLink to="/" end>
-            Book a slot
-          </NavLink>
+            Agendar consulta
+          </NavLink> 
+          */
+          }
           {isPhysio ? (
             <>
               <NavLink to="/approvals">
-                Physio approvals
+                Aprobar consultas
                 {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
               </NavLink>
+              
               <button type="button" onClick={signOut}>
-                Sign out
+                Cerrar sesión
               </button>
             </>
           ) : (
-            <NavLink to="/login">Physio sign in</NavLink>
+            <NavLink to="/about">Acerca de nosotros</NavLink>
           )}
         </nav>
       </header>

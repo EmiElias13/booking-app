@@ -1,11 +1,12 @@
 :root {
-  --bg: #f4f6f8;
+  --bg: #f7f4fa;
   --surface: #ffffff;
-  --border: #e2e8ef;
-  --text: #16232e;
-  --muted: #64748b;
-  --accent: #0e7c66;
-  --accent-soft: #e6f4f0;
+  --border: #e6dfef;
+  --text: #2a1b3d;
+  --muted: #6d6280;
+  --accent: #6b3a96;
+  --accent-deep: #4e2870;
+  --accent-soft: #f3eaf8;
   --danger: #b4232b;
   --warning: #92600a;
   --radius: 12px;
@@ -46,31 +47,10 @@ h2 {
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 18px;
-}
-
-.brand div {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-sub {
-  font-size: 12px;
-  color: var(--muted);
+.brand-logo {
+  display: block;
+  height: 92px;
+  width: auto;
 }
 
 .nav {
@@ -97,7 +77,7 @@ h2 {
 
 .nav a:hover,
 .nav button:hover {
-  background: #eaeef3;
+  background: #efe8f5;
 }
 
 .nav a.active {
@@ -248,7 +228,7 @@ textarea {
 
 .slot:disabled {
   cursor: not-allowed;
-  background: #f1f4f7;
+  background: #f3eef6;
   color: var(--muted);
 }
 
@@ -268,7 +248,7 @@ textarea {
 }
 
 .btn-primary:hover {
-  background: #0b6353;
+  background: var(--accent-deep);
 }
 
 .btn-ghost {
@@ -278,7 +258,7 @@ textarea {
 }
 
 .btn-ghost:hover {
-  background: #f1f4f7;
+  background: #f3eef6;
 }
 
 .btn:disabled {
@@ -293,9 +273,9 @@ textarea {
 }
 
 .banner-success {
-  border: 1px solid #b7dfd3;
+  border: 1px solid #d8c6ea;
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
 }
 
 .banner-error {
@@ -324,7 +304,7 @@ textarea {
 
 .status-approved {
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
 }
 
 .status-declined {
@@ -408,7 +388,7 @@ textarea {
 .chip-active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
   font-weight: 600;
 }
 
@@ -453,7 +433,7 @@ textarea {
   padding: 12px;
   border-left: 3px solid var(--accent);
   border-radius: 0 8px 8px 0;
-  background: #f7fafb;
+  background: #f8f4fb;
   font-size: 14px;
   color: #34485a;
 }

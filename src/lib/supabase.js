@@ -118,15 +118,16 @@ function applyMiddleware(role, method, path) {
   }
 }
 
-function throwQueryError(body, status) {
+function throwQueryError(body, status, role) {
   const code = body?.code
   const error = new Error(body?.message ?? 'Request failed')
   error.status = code === '23505' ? 409 : status
-  error.fieldErrors = error.status === 401
-    ? { form: 'Physio sign-in required' }
-    : code === '23505'
-      ? { time: 'That slot was just taken' }
-      : {}
+  error.fieldErrors =
+    role === 'admin' && error.status === 401
+      ? { form: 'Physio sign-in required' }
+      : code === '23505'
+        ? { time: 'That slot was just taken' }
+        : { form: error.message }
   throw error
 }
 
@@ -154,7 +155,7 @@ async function rest(role, path, options = {}) {
     },
   })
   const body = await response.json().catch(() => null)
-  if (!response.ok) throwQueryError(body, response.status)
+  if (!response.ok) throwQueryError(body, response.status, role)
   return body
 }
 
@@ -191,22 +192,41 @@ export async function listSlots() {
 }
 
 export async function createAppointment(request) {
-  return firstRow(
-    await rest('guest', '/appointments', {
-      method: 'POST',
-      body: JSON.stringify({
-        client_name: request.clientName,
-        email: request.email,
-        phone: request.phone ?? '',
-        service: request.service,
-        notes: request.notes ?? '',
-        slot_date: request.date,
-        slot_time: request.time,
-        status: 'pending',
-        physio_note: '',
-      }),
+  await rest('guest', '/appointments', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      client_name: request.clientName,
+      email: request.email,
+      phone: request.phone ?? '',
+      service: request.service,
+      notes: request.notes ?? '',
+      slot_date: request.date,
+      slot_time: request.time,
+      status: 'pending',
+      physio_note: '',
     }),
+  })
+
+  const rows = await rest(
+    'guest',
+    `/appointment_slots?slot_date=eq.${encodeURIComponent(request.date)}&slot_time=eq.${encodeURIComponent(request.time)}&select=*`,
   )
+  const slot = Array.isArray(rows) ? rows[0] : null
+
+  return {
+    id: slot?.id ?? crypto.randomUUID(),
+    clientName: request.clientName,
+    email: request.email,
+    phone: request.phone ?? '',
+    service: request.service,
+    notes: request.notes ?? '',
+    date: slot?.slot_date ?? request.date,
+    time: slot?.slot_time ?? request.time,
+    status: slot?.status ?? 'pending',
+    physioNote: '',
+    requestedAt: new Date().toISOString(),
+  }
 }
 
 export async function listAppointments() {

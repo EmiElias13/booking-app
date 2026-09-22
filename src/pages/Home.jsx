@@ -85,10 +85,10 @@ export default function Home() {
   return (
     <div className="page">
       <section className="hero">
-        <h1>Request a physio slot</h1>
+        <h1>Solicita una consulta</h1>
         <p>
-          Choose a time that suits you. Your physio reviews every request and confirms it, usually
-          within a few hours.
+          Elige un horario que te convenga. Nuestro equipo de fisioterapeutas revisa cada solicitud y la confirma, generalmente
+          dentro de unas pocas horas.
         </p>
       </section>
 
@@ -100,50 +100,47 @@ export default function Home() {
 
       {confirmation && (
         <div className="banner banner-success" role="status">
-          <strong>Request sent.</strong> {formatDate(confirmation.date)} at {confirmation.time} for{' '}
-          {serviceLabel(confirmation.service)}. We&apos;ll email {confirmation.email} once the
-          physio approves it.
+          <strong>Solicitud enviada.</strong> {formatDate(confirmation.date)} a las {confirmation.time} para{' '}
+          {serviceLabel(confirmation.service)}. Te enviaremos un correo a {confirmation.email} una vez que el fisioterapeuta la apruebe.
         </div>
       )}
 
       <form className="card booking-form" onSubmit={handleSubmit} noValidate>
         <div className="field-grid">
           <label className="field">
-            <span>Full name</span>
+            <span>Nombre completo</span>
             <input
               value={form.clientName}
               onChange={(event) => updateField('clientName', event.target.value)}
-              placeholder="Alex Moreno"
+              placeholder="Nombre"
               aria-invalid={Boolean(errors.clientName)}
             />
             {errors.clientName && <small className="error">{errors.clientName}</small>}
           </label>
 
           <label className="field">
-            <span>Email</span>
+            <span>Email <em>(opcional)</em></span>
             <input
               type="email"
               value={form.email}
               onChange={(event) => updateField('email', event.target.value)}
-              placeholder="alex@example.com"
+              placeholder="ejemplo@gmail.com"
               aria-invalid={Boolean(errors.email)}
             />
             {errors.email && <small className="error">{errors.email}</small>}
           </label>
 
           <label className="field">
-            <span>
-              Phone <em>(optional)</em>
-            </span>
+            <span>Telefono <em>(opcional)</em></span>
             <input
               value={form.phone}
               onChange={(event) => updateField('phone', event.target.value)}
-              placeholder="+34 600 000 000"
+              placeholder="686 123 456"
             />
           </label>
 
           <label className="field">
-            <span>Treatment</span>
+            <span>Tipo de consulta</span>
             <select
               value={form.service}
               onChange={(event) => updateField('service', event.target.value)}
@@ -157,7 +154,7 @@ export default function Home() {
           </label>
 
           <label className="field">
-            <span>Preferred date</span>
+            <span>Fecha</span>
             <input
               type="date"
               min={todayISO()}
@@ -173,7 +170,7 @@ export default function Home() {
         </div>
 
         <fieldset className="field slots">
-          <legend>Available times {date && <em>· {formatDate(date)}</em>}</legend>
+          <legend>Horarios disponibles {date && <em>· {formatDate(date)}</em>}</legend>
           <div className="slot-grid">
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
@@ -189,7 +186,7 @@ export default function Home() {
                   }}
                 >
                   {slot}
-                  {taken && <small>booked</small>}
+                  {taken && <small>agendado</small>}
                 </button>
               )
             })}
@@ -199,26 +196,26 @@ export default function Home() {
 
         <label className="field">
           <span>
-            What should the physio know? <em>(optional)</em>
+            Queremos saber más sobre tu consulta <em>(opcional)</em>
           </span>
           <textarea
             rows={3}
             value={form.notes}
             onChange={(event) => updateField('notes', event.target.value)}
-            placeholder="Lower back pain after running, worse in the mornings."
+            placeholder="Dolores, molestias, etc. Puedes detallar tu consulta."
           />
         </label>
 
         {errors.form && <small className="error">{errors.form}</small>}
 
         <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? 'Sending…' : 'Request appointment'}
+          {submitting ? 'Enviando…' : 'Solicitar consulta'}
         </button>
       </form>
 
       {myRequests.length > 0 && (
         <section className="card">
-          <h2>Your requests</h2>
+          <h2>Tus solicitudes</h2>
           <ul className="request-list">
             {myRequests.map((appointment) => (
               <li key={appointment.id}>
@@ -228,7 +225,7 @@ export default function Home() {
                   </strong>
                   <span className="muted">{serviceLabel(appointment.service)}</span>
                   {appointment.physioNote && (
-                    <span className="muted">Physio: {appointment.physioNote}</span>
+                    <span className="muted">Fisioterapeuta: {appointment.physioNote}</span>
                   )}
                 </div>
                 <span className={`status status-${appointment.status}`}>{appointment.status}</span>

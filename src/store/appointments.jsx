@@ -31,7 +31,7 @@ export function AppointmentsProvider({ children }) {
       setAppointments(isPhysio ? await listAppointments() : await listSlots())
       setApiError(null)
     } catch (error) {
-      setApiError(error.status === 401 ? 'Physio sign-in required.' : REACH_ERROR)
+      setApiError(isPhysio && error.status === 401 ? 'Physio sign-in required.' : REACH_ERROR)
     } finally {
       setLoading(false)
     }
