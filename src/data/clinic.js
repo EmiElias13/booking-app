@@ -1,8 +1,8 @@
 export const SERVICES = [
-  { id: 'initial', label: 'Initial assessment (60 min)' },
-  { id: 'followup', label: 'Follow-up session (45 min)' },
-  { id: 'sports', label: 'Sports injury rehab (45 min)' },
-  { id: 'massage', label: 'Deep tissue massage (30 min)' },
+  { id: 'initial', label: 'Evaluación inicial (60 min)' },
+  { id: 'followup', label: 'Seguimiento (45 min)' },
+  { id: 'sports', label: 'Rehabilitación deportiva (45 min)' },
+  { id: 'massage', label: 'Masaje terapéutico (30 min)' },
 ]
 
 export const TIME_SLOTS = [

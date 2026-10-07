@@ -1,11 +1,12 @@
 :root {
-  --bg: #f4f6f8;
+  --bg: #f7f4fa;
   --surface: #ffffff;
-  --border: #e2e8ef;
-  --text: #16232e;
-  --muted: #64748b;
-  --accent: #0e7c66;
-  --accent-soft: #e6f4f0;
+  --border: #e6dfef;
+  --text: #2a1b3d;
+  --muted: #6d6280;
+  --accent: #6b3a96;
+  --accent-deep: #4e2870;
+  --accent-soft: #f3eaf8;
   --danger: #b4232b;
   --warning: #92600a;
   --radius: 12px;
@@ -46,52 +47,38 @@ h2 {
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 18px;
-}
-
-.brand div {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-sub {
-  font-size: 12px;
-  color: var(--muted);
+.brand-logo {
+  display: block;
+  height: 92px;
+  width: auto;
 }
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.nav a {
+.nav a,
+.nav button {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  font: inherit;
   font-size: 14px;
   font-weight: 500;
   color: var(--muted);
   text-decoration: none;
+  cursor: pointer;
 }
 
-.nav a:hover {
-  background: #eaeef3;
+.nav a:hover,
+.nav button:hover {
+  background: #efe8f5;
 }
 
 .nav a.active {
@@ -242,7 +229,7 @@ textarea {
 
 .slot:disabled {
   cursor: not-allowed;
-  background: #f1f4f7;
+  background: #f3eef6;
   color: var(--muted);
 }
 
@@ -262,7 +249,7 @@ textarea {
 }
 
 .btn-primary:hover {
-  background: #0b6353;
+  background: var(--accent-deep);
 }
 
 .btn-ghost {
@@ -272,7 +259,7 @@ textarea {
 }
 
 .btn-ghost:hover {
-  background: #f1f4f7;
+  background: #f3eef6;
 }
 
 .btn:disabled {
@@ -284,12 +271,13 @@ textarea {
   padding: 14px 16px;
   border-radius: var(--radius);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .banner-success {
-  border: 1px solid #b7dfd3;
+  border: 1px solid #d8c6ea;
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
 }
 
 .banner-error {
@@ -318,7 +306,7 @@ textarea {
 
 .status-approved {
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
 }
 
 .status-declined {
@@ -355,6 +343,11 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.request-list li strong {
+  overflow-wrap: anywhere;
 }
 
 .stat-row {
@@ -402,7 +395,7 @@ textarea {
 .chip-active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: #0b5646;
+  color: var(--accent-deep);
   font-weight: 600;
 }
 
@@ -440,6 +433,7 @@ textarea {
 .approval-meta dd {
   margin: 2px 0 0;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .approval-notes {
@@ -447,9 +441,10 @@ textarea {
   padding: 12px;
   border-left: 3px solid var(--accent);
   border-radius: 0 8px 8px 0;
-  background: #f7fafb;
+  background: #f8f4fb;
   font-size: 14px;
   color: #34485a;
+  overflow-wrap: anywhere;
 }
 
 .approval-actions {
@@ -475,4 +470,102 @@ textarea {
   border-radius: var(--radius);
   color: var(--muted);
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 16px max(16px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+
+  .brand-logo {
+    height: 60px;
+  }
+
+  .nav a,
+  .nav button {
+    min-height: 44px;
+  }
+
+  .hero h1 {
+    font-size: 22px;
+  }
+
+  .page {
+    padding-top: 20px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .slot {
+    min-height: 44px;
+    padding: 12px 6px;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .booking-form .btn-primary {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .request-list li {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .request-list li .status {
+    margin-left: auto;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat {
+    padding: 10px 12px;
+  }
+
+  .chip {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .approval-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .approval-buttons {
+    flex-direction: column;
+  }
+
+  .approval-buttons .btn {
+    width: 100%;
+  }
+}
+
+@media (hover: none) {
+  .slot:active:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    background: var(--accent-deep);
+  }
+
+  .btn-ghost:active:not(:disabled) {
+    background: #f3eef6;
+  }
 }
