@@ -56,7 +56,7 @@ body {
   width: min(52vw, 480px);
   height: min(52vw, 480px);
   background: radial-gradient(circle, var(--accent) 0%, var(--accent-soft) 48%, transparent 70%);
-  animation: blob-drift-a 24s var(--ease-out) infinite alternate;
+  animation: blob-drift-a 24s ease-in-out infinite alternate;
 }
 
 .ambient-blob-b {
@@ -65,7 +65,7 @@ body {
   width: min(48vw, 420px);
   height: min(48vw, 420px);
   background: radial-gradient(circle, var(--accent-deep) 0%, var(--accent) 42%, transparent 72%);
-  animation: blob-drift-b 28s var(--ease-out) infinite alternate;
+  animation: blob-drift-b 28s ease-in-out infinite alternate;
 }
 
 @keyframes blob-drift-a {
@@ -101,7 +101,7 @@ body {
 }
 
 .enter {
-  animation: fade-up var(--duration-slow) var(--ease-out) both;
+  animation: fade-up var(--duration-slow) var(--ease-out) backwards;
 }
 
 .enter-delay-1 {
@@ -213,17 +213,36 @@ h2 {
 
 .card {
   padding: 20px;
+  border: 1px solid var(--border);
   border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+}
+
+.card-lift {
+  position: relative;
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
+.card-lift::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
 @media (hover: hover) {
-  .card:hover {
+  .card-lift:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+  }
+
+  .card-lift:hover::after {
+    opacity: 1;
   }
 }
 
@@ -270,13 +289,17 @@ textarea {
   background: #fff;
   font: inherit;
   color: inherit;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 input[aria-invalid='true'] {
@@ -289,6 +312,33 @@ textarea {
 
 .error {
   color: var(--danger);
+}
+
+@keyframes error-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  12.5% {
+    transform: translateX(4px);
+  }
+
+  37.5% {
+    transform: translateX(-4px);
+  }
+
+  62.5% {
+    transform: translateX(4px);
+  }
+
+  87.5% {
+    transform: translateX(-4px);
+  }
+}
+
+.error-shake {
+  animation: error-shake var(--duration-md) var(--ease-out);
 }
 
 .slots legend {
@@ -660,14 +710,21 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .ambient-blob,
-  .enter {
+  .enter,
+  .error-shake {
     animation: none !important;
   }
 
-  .card,
-  .card:hover {
+  .card-lift,
+  .card-lift:hover {
     transition: none;
     transform: none;
+  }
+
+  .card-lift::after,
+  .card-lift:hover::after {
+    transition: none;
+    opacity: 0;
   }
 }
 

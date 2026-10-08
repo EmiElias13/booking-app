@@ -107,7 +107,7 @@ export default function Home() {
 
       <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit} noValidate>
         <div className="field-grid">
-          <label className="field">
+          <label className={`field${errors.clientName ? ' error-shake' : ''}`}>
             <span>Nombre completo</span>
             <input
               value={form.clientName}
@@ -119,8 +119,8 @@ export default function Home() {
             {errors.clientName && <small className="error">{errors.clientName}</small>}
           </label>
 
-          <label className="field">
-            <span>Email <em>(opcional)</em></span>
+          <label className={`field${errors.email ? ' error-shake' : ''}`}>
+            <span>Email</span>
             <input
               type="email"
               value={form.email}
@@ -157,7 +157,7 @@ export default function Home() {
             </select>
           </label>
 
-          <label className="field">
+          <label className={`field${errors.date ? ' error-shake' : ''}`}>
             <span>Fecha</span>
             <input
               type="date"
@@ -173,7 +173,7 @@ export default function Home() {
           </label>
         </div>
 
-        <fieldset className="field slots">
+        <fieldset className={`field slots${errors.time ? ' error-shake' : ''}`}>
           <legend>Horarios disponibles {date && <em>· {formatDate(date)}</em>}</legend>
           <div className="slot-grid">
             {TIME_SLOTS.map((slot) => {
@@ -210,7 +210,7 @@ export default function Home() {
           />
         </label>
 
-        {errors.form && <small className="error">{errors.form}</small>}
+        {errors.form && <small className="error error-shake">{errors.form}</small>}
 
         <button type="submit" className="btn btn-primary" disabled={submitting}>
           {submitting ? 'Enviando…' : 'Solicitar consulta'}
@@ -222,7 +222,7 @@ export default function Home() {
           <h2>Tus solicitudes</h2>
           <ul className="request-list">
             {myRequests.map((appointment) => (
-              <li key={appointment.id}>
+              <li key={appointment.id} className="card-lift">
                 <div>
                   <strong>
                     {formatDate(appointment.date)} · {appointment.time}

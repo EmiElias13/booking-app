@@ -89,7 +89,7 @@ export default function Approvals() {
       ) : (
         <ul className="approval-list enter enter-delay-2">
           {visible.map((appointment) => (
-            <li key={appointment.id} className="card approval">
+            <li key={appointment.id} className="card approval card-lift">
               <div className="approval-head">
                 <div>
                   <strong>

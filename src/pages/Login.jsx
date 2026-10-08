@@ -44,7 +44,7 @@ export default function Login() {
       )}
 
       <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit}>
-        <label className="field">
+        <label className={`field${error ? ' error-shake' : ''}`}>
           <span>Email</span>
           <input
             type="email"
@@ -56,7 +56,7 @@ export default function Login() {
           />
         </label>
 
-        <label className="field">
+        <label className={`field${error ? ' error-shake' : ''}`}>
           <span>Password</span>
           <input
             type="password"
@@ -67,7 +67,7 @@ export default function Login() {
           />
         </label>
 
-        {error && <small className="error">{error}</small>}
+        {error && <small className="error error-shake">{error}</small>}
 
         <button type="submit" className="btn btn-primary" disabled={submitting || !isSupabaseConfigured}>
           {submitting ? 'Signing in…' : 'Sign in'}
