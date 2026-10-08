@@ -658,6 +658,7 @@ textarea {
 .stat span {
   font-size: 22px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat small {
@@ -665,12 +666,29 @@ textarea {
 }
 
 .filter-row {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+.chip-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: left center;
+  transition: transform var(--duration-md) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+
 .chip {
+  position: relative;
+  z-index: 1;
+  min-height: 44px;
   padding: 7px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -683,7 +701,7 @@ textarea {
 
 .chip-active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--accent-deep);
   font-weight: 600;
 }
@@ -692,6 +710,14 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.approval-exit,
+.approval-exit:hover {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
 }
 
 .approval-head {
@@ -890,6 +916,12 @@ textarea {
 
   .btn-primary::after,
   .btn-primary:hover:not(:disabled)::after {
+    transition: none;
+  }
+
+  .chip-indicator,
+  .approval-exit,
+  .approval-exit:hover {
     transition: none;
   }
 }
