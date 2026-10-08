@@ -507,6 +507,11 @@ textarea {
   cursor: not-allowed;
 }
 
+.btn-primary[aria-busy='true'] {
+  opacity: 1;
+  cursor: progress;
+}
+
 .banner {
   padding: 14px 16px;
   border-radius: var(--radius);
