@@ -13,6 +13,10 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="ambient" aria-hidden="true">
+        <span className="ambient-blob ambient-blob-a" />
+        <span className="ambient-blob ambient-blob-b" />
+      </div>
       <header className="app-header">
         <div className="brand">
           <NavLink to="/">

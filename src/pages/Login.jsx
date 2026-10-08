@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero enter">
         <h1>Physio sign in</h1>
         <p>Approvals are limited to the clinic physio. Guests can request a slot without an account.</p>
       </section>
@@ -43,7 +43,7 @@ export default function Login() {
         </div>
       )}
 
-      <form className="card booking-form" onSubmit={handleSubmit}>
+      <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit}>
         <label className="field">
           <span>Email</span>
           <input

@@ -43,7 +43,7 @@ export default function Approvals() {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero enter">
         <h1>Appointment approvals</h1>
         <p>Review incoming requests, confirm the ones that fit your schedule, and decline the rest.</p>
       </section>
@@ -54,7 +54,7 @@ export default function Approvals() {
         </div>
       )}
 
-      <div className="stat-row">
+      <div className="stat-row enter enter-delay-1">
         <div className="stat">
           <span>{counts.pending}</span>
           <small>Pending</small>
@@ -69,7 +69,7 @@ export default function Approvals() {
         </div>
       </div>
 
-      <div className="filter-row">
+      <div className="filter-row enter enter-delay-2">
         {FILTERS.map((option) => (
           <button
             key={option.id}
@@ -83,11 +83,11 @@ export default function Approvals() {
       </div>
 
       {loading ? (
-        <p className="empty">Loading requests…</p>
+        <p className="empty enter enter-delay-2">Loading requests…</p>
       ) : visible.length === 0 ? (
-        <p className="empty">Nothing here yet. Requests from the booking page show up in this list.</p>
+        <p className="empty enter enter-delay-2">Nothing here yet. Requests from the booking page show up in this list.</p>
       ) : (
-        <ul className="approval-list">
+        <ul className="approval-list enter enter-delay-2">
           {visible.map((appointment) => (
             <li key={appointment.id} className="card approval">
               <div className="approval-head">

@@ -84,7 +84,7 @@ export default function Home() {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero enter">
         <h1>Solicita una consulta</h1>
         <p>
           Elige un horario que te convenga. Nuestro equipo de fisioterapeutas revisa cada solicitud y la confirma, generalmente
@@ -105,7 +105,7 @@ export default function Home() {
         </div>
       )}
 
-      <form className="card booking-form" onSubmit={handleSubmit} noValidate>
+      <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit} noValidate>
         <div className="field-grid">
           <label className="field">
             <span>Nombre completo</span>
@@ -218,7 +218,7 @@ export default function Home() {
       </form>
 
       {myRequests.length > 0 && (
-        <section className="card">
+        <section className="card enter enter-delay-2">
           <h2>Tus solicitudes</h2>
           <ul className="request-list">
             {myRequests.map((appointment) => (
