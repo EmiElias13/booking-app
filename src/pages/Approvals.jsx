@@ -97,7 +97,7 @@ export default function Approvals() {
                   </strong>
                   <span className="muted">{serviceLabel(appointment.service)}</span>
                 </div>
-                <span className={`status status-${appointment.status}`}>{appointment.status}</span>
+                <span key={appointment.status} className={`status status-${appointment.status}`}>{appointment.status}</span>
               </div>
 
               <dl className="approval-meta">

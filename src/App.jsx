@@ -35,7 +35,7 @@ export default function App() {
             <>
               <NavLink to="/approvals">
                 Aprobar consultas
-                {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+                {pendingCount > 0 && <span className="badge" key={pendingCount}>{pendingCount}</span>}
               </NavLink>
               
               <button type="button" onClick={signOut}>

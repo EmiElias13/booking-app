@@ -188,6 +188,24 @@ h2 {
   font-size: 12px;
   font-weight: 600;
   text-align: center;
+  animation: badge-pop var(--duration-md) var(--ease-out) backwards;
+}
+
+@keyframes badge-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .nav a.active .badge {
@@ -517,6 +535,19 @@ textarea {
   border-radius: var(--radius);
   font-size: 14px;
   overflow-wrap: anywhere;
+  animation: banner-in var(--duration-md) var(--ease-out) backwards;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .banner-success {
@@ -542,6 +573,19 @@ textarea {
   font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
+  animation: status-in var(--duration-fast) var(--ease-out) backwards;
+}
+
+@keyframes status-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .status-pending {
@@ -804,7 +848,10 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .ambient-blob,
   .enter,
-  .error-shake {
+  .error-shake,
+  .banner,
+  .status,
+  .badge {
     animation: none !important;
   }
 

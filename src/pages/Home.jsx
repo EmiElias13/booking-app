@@ -99,7 +99,7 @@ export default function Home() {
       )}
 
       {confirmation && (
-        <div className="banner banner-success" role="status">
+        <div className="banner banner-success" role="status" key={confirmation.id}>
           <strong>Solicitud enviada.</strong> {formatDate(confirmation.date)} a las {confirmation.time} para{' '}
           {serviceLabel(confirmation.service)}. Te enviaremos un correo a {confirmation.email} una vez que el fisioterapeuta la apruebe.
         </div>
@@ -238,7 +238,7 @@ export default function Home() {
                     <span className="muted">Fisioterapeuta: {appointment.physioNote}</span>
                   )}
                 </div>
-                <span className={`status status-${appointment.status}`}>{appointment.status}</span>
+                <span key={appointment.status} className={`status status-${appointment.status}`}>{appointment.status}</span>
               </li>
             ))}
           </ul>
