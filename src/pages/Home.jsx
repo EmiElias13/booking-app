@@ -175,7 +175,7 @@ export default function Home() {
 
         <fieldset className={`field slots${errors.time ? ' error-shake' : ''}`}>
           <legend>Horarios disponibles {date && <em>· {formatDate(date)}</em>}</legend>
-          <div className="slot-grid">
+          <div className="slot-grid" key={date}>
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
               return (
@@ -189,7 +189,7 @@ export default function Home() {
                     setErrors((current) => ({ ...current, time: undefined }))
                   }}
                 >
-                  {slot}
+                  <span className="slot-label">{slot}</span>
                   {taken && <small>agendado</small>}
                 </button>
               )
@@ -212,7 +212,13 @@ export default function Home() {
 
         {errors.form && <small className="error error-shake">{errors.form}</small>}
 
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting}
+          aria-busy={submitting ? true : undefined}
+        >
+          {submitting && <span className="btn-spinner" aria-hidden="true" />}
           {submitting ? 'Enviando…' : 'Solicitar consulta'}
         </button>
       </form>

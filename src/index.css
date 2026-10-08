@@ -349,9 +349,22 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 10px;
+  animation: slot-grid-in var(--duration-md) var(--ease-out);
+}
+
+@keyframes slot-grid-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .slot {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -362,6 +375,30 @@ textarea {
   background: #fff;
   font: inherit;
   cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    opacity var(--duration-md) var(--ease-out);
+}
+
+.slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--accent-soft);
+  transform: scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--duration-md) var(--ease-out),
+    opacity var(--duration-md) var(--ease-out);
+}
+
+.slot-label,
+.slot small {
+  position: relative;
+  z-index: 1;
 }
 
 .slot small {
@@ -373,16 +410,24 @@ textarea {
   border-color: var(--accent);
 }
 
+.slot:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .slot-selected {
   border-color: var(--accent);
-  background: var(--accent-soft);
   font-weight: 600;
+}
+
+.slot-selected::before {
+  transform: scale(1);
+  opacity: 1;
 }
 
 .slot:disabled {
   cursor: not-allowed;
-  background: #f3eef6;
   color: var(--muted);
+  opacity: 0.55;
 }
 
 .btn {
@@ -395,13 +440,56 @@ textarea {
 }
 
 .btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   align-self: flex-start;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: #fff;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
-.btn-primary:hover {
-  background: var(--accent-deep);
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:hover:not(:disabled)::after {
+    opacity: 1;
+  }
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-ghost {
@@ -726,15 +814,37 @@ textarea {
     transition: none;
     opacity: 0;
   }
+
+  .slot,
+  .slot:active:not(:disabled),
+  .slot:disabled,
+  .slot::before,
+  .slot-selected::before,
+  .btn-primary,
+  .btn-primary:hover:not(:disabled),
+  .btn-primary:active:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+
+  .slot-selected::before {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .slot-grid {
+    animation: none !important;
+  }
+
+  .btn-primary::after,
+  .btn-primary:hover:not(:disabled)::after {
+    transition: none;
+  }
 }
 
 @media (hover: none) {
   .slot:active:not(:disabled) {
     border-color: var(--accent);
-  }
-
-  .btn-primary:active:not(:disabled) {
-    background: var(--accent-deep);
   }
 
   .btn-ghost:active:not(:disabled) {

@@ -69,7 +69,13 @@ export default function Login() {
 
         {error && <small className="error error-shake">{error}</small>}
 
-        <button type="submit" className="btn btn-primary" disabled={submitting || !isSupabaseConfigured}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting || !isSupabaseConfigured}
+          aria-busy={submitting ? true : undefined}
+        >
+          {submitting && <span className="btn-spinner" aria-hidden="true" />}
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
