@@ -84,7 +84,7 @@ export default function Home() {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero enter">
         <h1>Solicita una consulta</h1>
         <p>
           Elige un horario que te convenga. Nuestro equipo de fisioterapeutas revisa cada solicitud y la confirma, generalmente
@@ -99,15 +99,15 @@ export default function Home() {
       )}
 
       {confirmation && (
-        <div className="banner banner-success" role="status">
+        <div className="banner banner-success" role="status" key={confirmation.id}>
           <strong>Solicitud enviada.</strong> {formatDate(confirmation.date)} a las {confirmation.time} para{' '}
           {serviceLabel(confirmation.service)}. Te enviaremos un correo a {confirmation.email} una vez que el fisioterapeuta la apruebe.
         </div>
       )}
 
-      <form className="card booking-form" onSubmit={handleSubmit} noValidate>
+      <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit} noValidate>
         <div className="field-grid">
-          <label className="field">
+          <label className={`field${errors.clientName ? ' error-shake' : ''}`}>
             <span>Nombre completo</span>
             <input
               value={form.clientName}
@@ -119,8 +119,8 @@ export default function Home() {
             {errors.clientName && <small className="error">{errors.clientName}</small>}
           </label>
 
-          <label className="field">
-            <span>Email <em>(opcional)</em></span>
+          <label className={`field${errors.email ? ' error-shake' : ''}`}>
+            <span>Email</span>
             <input
               type="email"
               value={form.email}
@@ -157,7 +157,7 @@ export default function Home() {
             </select>
           </label>
 
-          <label className="field">
+          <label className={`field${errors.date ? ' error-shake' : ''}`}>
             <span>Fecha</span>
             <input
               type="date"
@@ -173,9 +173,9 @@ export default function Home() {
           </label>
         </div>
 
-        <fieldset className="field slots">
+        <fieldset className={`field slots${errors.time ? ' error-shake' : ''}`}>
           <legend>Horarios disponibles {date && <em>· {formatDate(date)}</em>}</legend>
-          <div className="slot-grid">
+          <div className="slot-grid" key={date}>
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
               return (
@@ -189,7 +189,7 @@ export default function Home() {
                     setErrors((current) => ({ ...current, time: undefined }))
                   }}
                 >
-                  {slot}
+                  <span className="slot-label">{slot}</span>
                   {taken && <small>agendado</small>}
                 </button>
               )
@@ -210,19 +210,25 @@ export default function Home() {
           />
         </label>
 
-        {errors.form && <small className="error">{errors.form}</small>}
+        {errors.form && <small className="error error-shake">{errors.form}</small>}
 
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting}
+          aria-busy={submitting ? true : undefined}
+        >
+          {submitting && <span className="btn-spinner" aria-hidden="true" />}
           {submitting ? 'Enviando…' : 'Solicitar consulta'}
         </button>
       </form>
 
       {myRequests.length > 0 && (
-        <section className="card">
+        <section className="card enter enter-delay-2">
           <h2>Tus solicitudes</h2>
           <ul className="request-list">
             {myRequests.map((appointment) => (
-              <li key={appointment.id}>
+              <li key={appointment.id} className="card-lift">
                 <div>
                   <strong>
                     {formatDate(appointment.date)} · {appointment.time}
@@ -232,7 +238,7 @@ export default function Home() {
                     <span className="muted">Fisioterapeuta: {appointment.physioNote}</span>
                   )}
                 </div>
-                <span className={`status status-${appointment.status}`}>{appointment.status}</span>
+                <span key={appointment.status} className={`status status-${appointment.status}`}>{appointment.status}</span>
               </li>
             ))}
           </ul>

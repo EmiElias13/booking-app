@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero enter">
         <h1>Physio sign in</h1>
         <p>Approvals are limited to the clinic physio. Guests can request a slot without an account.</p>
       </section>
@@ -43,8 +43,8 @@ export default function Login() {
         </div>
       )}
 
-      <form className="card booking-form" onSubmit={handleSubmit}>
-        <label className="field">
+      <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit}>
+        <label className={`field${error ? ' error-shake' : ''}`}>
           <span>Email</span>
           <input
             type="email"
@@ -56,7 +56,7 @@ export default function Login() {
           />
         </label>
 
-        <label className="field">
+        <label className={`field${error ? ' error-shake' : ''}`}>
           <span>Password</span>
           <input
             type="password"
@@ -67,9 +67,15 @@ export default function Login() {
           />
         </label>
 
-        {error && <small className="error">{error}</small>}
+        {error && <small className="error error-shake">{error}</small>}
 
-        <button type="submit" className="btn btn-primary" disabled={submitting || !isSupabaseConfigured}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting || !isSupabaseConfigured}
+          aria-busy={submitting ? true : undefined}
+        >
+          {submitting && <span className="btn-spinner" aria-hidden="true" />}
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
