@@ -10,6 +10,14 @@
   --danger: #b4232b;
   --warning: #92600a;
   --radius: 12px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --duration-fast: 160ms;
+  --duration-md: 280ms;
+  --duration-slow: 480ms;
+  --shadow-sm: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 1px 3px color-mix(in srgb, var(--accent-deep) 8%, transparent);
+  --shadow-md: 0 10px 28px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 4px 10px color-mix(in srgb, var(--accent-deep) 10%, transparent);
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -23,6 +31,85 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient-blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.35;
+  filter: blur(72px);
+  will-change: transform;
+}
+
+.ambient-blob-a {
+  top: -14%;
+  left: -10%;
+  width: min(52vw, 480px);
+  height: min(52vw, 480px);
+  background: radial-gradient(circle, var(--accent) 0%, var(--accent-soft) 48%, transparent 70%);
+  animation: blob-drift-a 24s ease-in-out infinite alternate;
+}
+
+.ambient-blob-b {
+  right: -12%;
+  bottom: 2%;
+  width: min(48vw, 420px);
+  height: min(48vw, 420px);
+  background: radial-gradient(circle, var(--accent-deep) 0%, var(--accent) 42%, transparent 72%);
+  animation: blob-drift-b 28s ease-in-out infinite alternate;
+}
+
+@keyframes blob-drift-a {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(36px, 28px, 0);
+  }
+}
+
+@keyframes blob-drift-b {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-32px, -24px, 0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enter {
+  animation: fade-up var(--duration-slow) var(--ease-out) backwards;
+}
+
+.enter-delay-1 {
+  animation-delay: 60ms;
+}
+
+.enter-delay-2 {
+  animation-delay: 120ms;
 }
 
 h1,
@@ -35,6 +122,12 @@ h2 {
   max-width: 900px;
   margin: 0 auto;
   padding: 24px 20px 64px;
+}
+
+.app-header,
+.app-main {
+  position: relative;
+  z-index: 1;
 }
 
 .app-header {
@@ -95,6 +188,24 @@ h2 {
   font-size: 12px;
   font-weight: 600;
   text-align: center;
+  animation: badge-pop var(--duration-md) var(--ease-out) backwards;
+}
+
+@keyframes badge-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .nav a.active .badge {
@@ -121,8 +232,36 @@ h2 {
 .card {
   padding: 20px;
   border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-lift {
+  position: relative;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.card-lift::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .card-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  .card-lift:hover::after {
+    opacity: 1;
+  }
 }
 
 .booking-form {
@@ -168,13 +307,17 @@ textarea {
   background: #fff;
   font: inherit;
   color: inherit;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: 2px solid transparent;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 input[aria-invalid='true'] {
@@ -189,6 +332,33 @@ textarea {
   color: var(--danger);
 }
 
+@keyframes error-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  12.5% {
+    transform: translateX(4px);
+  }
+
+  37.5% {
+    transform: translateX(-4px);
+  }
+
+  62.5% {
+    transform: translateX(4px);
+  }
+
+  87.5% {
+    transform: translateX(-4px);
+  }
+}
+
+.error-shake {
+  animation: error-shake var(--duration-md) var(--ease-out);
+}
+
 .slots legend {
   margin-bottom: 8px;
 }
@@ -197,9 +367,22 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 10px;
+  animation: slot-grid-in var(--duration-md) var(--ease-out);
+}
+
+@keyframes slot-grid-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .slot {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -210,6 +393,30 @@ textarea {
   background: #fff;
   font: inherit;
   cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    opacity var(--duration-md) var(--ease-out);
+}
+
+.slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--accent-soft);
+  transform: scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--duration-md) var(--ease-out),
+    opacity var(--duration-md) var(--ease-out);
+}
+
+.slot-label,
+.slot small {
+  position: relative;
+  z-index: 1;
 }
 
 .slot small {
@@ -221,16 +428,24 @@ textarea {
   border-color: var(--accent);
 }
 
+.slot:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .slot-selected {
   border-color: var(--accent);
-  background: var(--accent-soft);
   font-weight: 600;
+}
+
+.slot-selected::before {
+  transform: scale(1);
+  opacity: 1;
 }
 
 .slot:disabled {
   cursor: not-allowed;
-  background: #f3eef6;
   color: var(--muted);
+  opacity: 0.55;
 }
 
 .btn {
@@ -243,13 +458,56 @@ textarea {
 }
 
 .btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   align-self: flex-start;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: #fff;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
-.btn-primary:hover {
-  background: var(--accent-deep);
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:hover:not(:disabled)::after {
+    opacity: 1;
+  }
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-ghost {
@@ -267,11 +525,29 @@ textarea {
   cursor: not-allowed;
 }
 
+.btn-primary[aria-busy='true'] {
+  opacity: 1;
+  cursor: progress;
+}
+
 .banner {
   padding: 14px 16px;
   border-radius: var(--radius);
   font-size: 14px;
   overflow-wrap: anywhere;
+  animation: banner-in var(--duration-md) var(--ease-out) backwards;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .banner-success {
@@ -297,6 +573,19 @@ textarea {
   font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
+  animation: status-in var(--duration-fast) var(--ease-out) backwards;
+}
+
+@keyframes status-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .status-pending {
@@ -369,6 +658,7 @@ textarea {
 .stat span {
   font-size: 22px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat small {
@@ -376,12 +666,30 @@ textarea {
 }
 
 .filter-row {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+.chip-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform var(--duration-md) var(--ease-out),
+    width var(--duration-md) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
 .chip {
+  position: relative;
+  z-index: 1;
+  min-height: 44px;
   padding: 7px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -394,7 +702,7 @@ textarea {
 
 .chip-active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--accent-deep);
   font-weight: 600;
 }
@@ -403,6 +711,14 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.approval-exit,
+.approval-exit:hover {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
 }
 
 .approval-head {
@@ -556,13 +872,64 @@ textarea {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob,
+  .enter,
+  .error-shake,
+  .banner,
+  .status,
+  .badge {
+    animation: none !important;
+  }
+
+  .card-lift,
+  .card-lift:hover {
+    transition: none;
+    transform: none;
+  }
+
+  .card-lift::after,
+  .card-lift:hover::after {
+    transition: none;
+    opacity: 0;
+  }
+
+  .slot,
+  .slot:active:not(:disabled),
+  .slot:disabled,
+  .slot::before,
+  .slot-selected::before,
+  .btn-primary,
+  .btn-primary:hover:not(:disabled),
+  .btn-primary:active:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+
+  .slot-selected::before {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .slot-grid {
+    animation: none !important;
+  }
+
+  .btn-primary::after,
+  .btn-primary:hover:not(:disabled)::after {
+    transition: none;
+  }
+
+  .chip-indicator,
+  .approval-exit,
+  .approval-exit:hover {
+    transition: none;
+  }
+}
+
 @media (hover: none) {
   .slot:active:not(:disabled) {
     border-color: var(--accent);
-  }
-
-  .btn-primary:active:not(:disabled) {
-    background: var(--accent-deep);
   }
 
   .btn-ghost:active:not(:disabled) {
