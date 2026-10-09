@@ -1,6 +1,7 @@
 export const config = {
   name: 'Tu Clínica',
   shortName: 'Clínica',
+  clinicId: import.meta.env.VITE_CLINIC_ID ?? '',
   logo: '',
   locale: 'es-MX',
   themeColor: '#6b3a96',

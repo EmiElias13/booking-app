@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { isSupabaseConfigured } from '../lib/supabase.js'
+import { isAppConfigured } from '../lib/supabase.js'
 import { strings } from '../i18n/strings.js'
 import { useAuth } from '../store/auth.jsx'
 
@@ -38,7 +38,7 @@ export default function Login() {
         <p>{strings.login.intro}</p>
       </section>
 
-      {!isSupabaseConfigured && (
+      {!isAppConfigured && (
         <div className="banner banner-error" role="alert">
           {strings.errors.config}
         </div>
@@ -73,7 +73,7 @@ export default function Login() {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={submitting || !isSupabaseConfigured}
+          disabled={submitting || !isAppConfigured}
           aria-busy={submitting ? true : undefined}
         >
           {submitting && <span className="btn-spinner" aria-hidden="true" />}

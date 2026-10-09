@@ -1,3 +1,4 @@
+import { config } from '../config/clinic.config.js'
 import { strings } from '../i18n/strings.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
@@ -5,6 +6,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 const SESSION_KEY = 'clinic_staff_session'
 
 export const isSupabaseConfigured = Boolean(url && anonKey)
+export const isAppConfigured = Boolean(isSupabaseConfigured && config.clinicId)
 
 const ALLOWED = {
   guest: [
