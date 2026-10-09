@@ -1,0 +1,78 @@
+# Called by each clinic's deploy repo. Builds this app and deploys it
+# as that repo's GitHub Pages site.
+
+name: Build clinic
+
+on:
+  workflow_call:
+    inputs:
+      clinic_id:
+        description: Clinic id in the shared clinics table
+        type: string
+        required: true
+      base_path:
+        description: Vite public base path
+        type: string
+        default: /
+      app_ref:
+        description: booking-app git ref to build
+        type: string
+        default: main
+      node_version:
+        description: Node.js version
+        type: string
+        default: '22'
+    secrets:
+      VITE_SUPABASE_URL:
+        required: true
+      VITE_SUPABASE_ANON_KEY:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Require clinic_id
+        env:
+          CLINIC_ID: ${{ inputs.clinic_id }}
+        run: |
+          if [ -z "$CLINIC_ID" ]; then
+            echo "clinic_id is required and must not be empty." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          repository: EmiElias13/booking-app
+          ref: ${{ inputs.app_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CLINIC_ID: ${{ inputs.clinic_id }}
+          VITE_BASE_PATH: ${{ inputs.base_path }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
