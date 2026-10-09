@@ -3,6 +3,9 @@ import Home from './pages/Home.jsx'
 import Approvals from './pages/Approvals.jsx'
 import Login from './pages/Login.jsx'
 import RequirePhysio from './middleware/RequirePhysio.jsx'
+import Monogram from './components/Monogram.jsx'
+import { config } from './config/clinic.config.js'
+import { strings } from './i18n/strings.js'
 import { useAppointments } from './store/appointments.jsx'
 import { useAuth } from './store/auth.jsx'
 
@@ -10,6 +13,9 @@ export default function App() {
   const { appointments } = useAppointments()
   const { isPhysio, signOut } = useAuth()
   const pendingCount = appointments.filter((appointment) => appointment.status === 'pending').length
+  const logoSrc = config.logo
+    ? `${import.meta.env.BASE_URL}${config.logo.replace(/^\//, '')}`
+    : ''
 
   return (
     <div className="app">
@@ -20,26 +26,30 @@ export default function App() {
       <header className="app-header">
         <div className="brand">
           <NavLink to="/">
-            <img className="brand-logo" src={`${import.meta.env.BASE_URL}logo.png`} alt="Rehabireb, centro fisioterapéutico integral" />
+            {logoSrc ? (
+              <img className="brand-logo" src={logoSrc} alt={config.name} />
+            ) : (
+              <>
+                <Monogram />
+                <span className="brand-name">{config.name}</span>
+              </>
+            )}
           </NavLink>
         </div>
         <nav className="nav">
-          {
-          /* 
-          <NavLink to="/" end>
-            Agendar consulta
-          </NavLink> 
-          */
-          }
           {isPhysio ? (
             <>
               <NavLink to="/approvals">
-                Aprobar consultas
-                {pendingCount > 0 && <span className="badge" key={pendingCount}>{pendingCount}</span>}
+                {strings.nav.approvals}
+                {pendingCount > 0 && (
+                  <span className="badge" key={pendingCount}>
+                    {pendingCount}
+                  </span>
+                )}
               </NavLink>
-              
+
               <button type="button" onClick={signOut}>
-                Cerrar sesión
+                {strings.nav.signOut}
               </button>
             </>
           ) : null}
