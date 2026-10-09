@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDate, serviceLabel } from '../data/clinic.js'
 import { useCountUp } from '../hooks/useCountUp.js'
+import { strings } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
 
 const FILTERS = [
-  { id: 'pending', label: 'Pending' },
-  { id: 'approved', label: 'Approved' },
-  { id: 'declined', label: 'Declined' },
-  { id: 'all', label: 'All' },
+  { id: 'pending', label: strings.approvals.filters.pending },
+  { id: 'approved', label: strings.approvals.filters.approved },
+  { id: 'declined', label: strings.approvals.filters.declined },
+  { id: 'all', label: strings.approvals.filters.all },
 ]
 
 const EXIT_MS = 240
@@ -87,7 +88,7 @@ export default function Approvals() {
         await decide(appointment.id, status, nextNote)
         setNotes((current) => ({ ...current, [appointment.id]: '' }))
       } catch (error) {
-        setDecisionError(error.message || 'Could not update the request.')
+        setDecisionError(error.message || strings.errors.update)
       } finally {
         setBusyIds((current) => {
           const next = { ...current }
@@ -118,7 +119,7 @@ export default function Approvals() {
     if (result.ok) {
       setNotes((current) => ({ ...current, [appointment.id]: '' }))
     } else {
-      setDecisionError(result.error?.message || 'Could not update the request.')
+      setDecisionError(result.error?.message || strings.errors.update)
     }
     setBusyIds((current) => {
       const next = { ...current }
@@ -132,8 +133,8 @@ export default function Approvals() {
   return (
     <div className="page">
       <section className="hero enter">
-        <h1>Appointment approvals</h1>
-        <p>Review incoming requests, confirm the ones that fit your schedule, and decline the rest.</p>
+        <h1>{strings.approvals.title}</h1>
+        <p>{strings.approvals.intro}</p>
       </section>
 
       {bannerError && (
@@ -145,15 +146,15 @@ export default function Approvals() {
       <div className="stat-row enter enter-delay-1">
         <div className="stat">
           <span>{pendingCount}</span>
-          <small>Pending</small>
+          <small>{strings.approvals.filters.pending}</small>
         </div>
         <div className="stat">
           <span>{approvedCount}</span>
-          <small>Approved</small>
+          <small>{strings.approvals.filters.approved}</small>
         </div>
         <div className="stat">
           <span>{declinedCount}</span>
-          <small>Declined</small>
+          <small>{strings.approvals.filters.declined}</small>
         </div>
       </div>
 
@@ -185,9 +186,9 @@ export default function Approvals() {
       </div>
 
       {loading ? (
-        <p className="empty enter enter-delay-2">Loading requests…</p>
+        <p className="empty enter enter-delay-2">{strings.approvals.loading}</p>
       ) : visible.length === 0 ? (
-        <p className="empty enter enter-delay-2">Nothing here yet. Requests from the booking page show up in this list.</p>
+        <p className="empty enter enter-delay-2">{strings.approvals.empty}</p>
       ) : (
         <ul className="approval-list enter enter-delay-2">
           {visible.map((appointment) => (
@@ -202,21 +203,23 @@ export default function Approvals() {
                   </strong>
                   <span className="muted">{serviceLabel(appointment.service)}</span>
                 </div>
-                <span key={appointment.status} className={`status status-${appointment.status}`}>{appointment.status}</span>
+                <span key={appointment.status} className={`status status-${appointment.status}`}>
+                  {strings.status[appointment.status] ?? appointment.status}
+                </span>
               </div>
 
               <dl className="approval-meta">
                 <div>
-                  <dt>Client</dt>
+                  <dt>{strings.approvals.client}</dt>
                   <dd>{appointment.clientName}</dd>
                 </div>
                 <div>
-                  <dt>Email</dt>
+                  <dt>{strings.approvals.email}</dt>
                   <dd>{appointment.email}</dd>
                 </div>
                 {appointment.phone && (
                   <div>
-                    <dt>Phone</dt>
+                    <dt>{strings.approvals.phone}</dt>
                     <dd>{appointment.phone}</dd>
                   </div>
                 )}
@@ -231,7 +234,7 @@ export default function Approvals() {
                     onChange={(event) =>
                       setNotes((current) => ({ ...current, [appointment.id]: event.target.value }))
                     }
-                    placeholder="Message for the client (optional)"
+                    placeholder={strings.approvals.notePh}
                   />
                   <div className="approval-buttons">
                     <button
@@ -240,7 +243,7 @@ export default function Approvals() {
                       disabled={Boolean(busyIds[appointment.id])}
                       onClick={() => handleDecision(appointment, 'approved')}
                     >
-                      Approve
+                      {strings.approvals.approve}
                     </button>
                     <button
                       type="button"
@@ -248,14 +251,16 @@ export default function Approvals() {
                       disabled={Boolean(busyIds[appointment.id])}
                       onClick={() => handleDecision(appointment, 'declined')}
                     >
-                      Decline
+                      {strings.approvals.decline}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="approval-actions">
                   {appointment.physioNote && (
-                    <p className="muted">Your note: {appointment.physioNote}</p>
+                    <p className="muted">
+                      {strings.approvals.yourNote} {appointment.physioNote}
+                    </p>
                   )}
                   <button
                     type="button"
@@ -263,7 +268,7 @@ export default function Approvals() {
                     disabled={Boolean(busyIds[appointment.id])}
                     onClick={() => handleDecision(appointment, 'pending', appointment.physioNote)}
                   >
-                    Move back to pending
+                    {strings.approvals.backToPending}
                   </button>
                 </div>
               )}

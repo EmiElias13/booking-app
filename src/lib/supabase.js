@@ -1,6 +1,8 @@
+import { strings } from '../i18n/strings.js'
+
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const SESSION_KEY = 'movewell_physio_session'
+const SESSION_KEY = 'clinic_staff_session'
 
 export const isSupabaseConfigured = Boolean(url && anonKey)
 
@@ -53,7 +55,7 @@ async function authFetch(path, options = {}) {
   })
   const body = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(body?.error_description || body?.msg || body?.message || 'Auth request failed')
+    throw new Error(strings.errors.signIn)
   }
   return body
 }
@@ -120,14 +122,16 @@ function applyMiddleware(role, method, path) {
 
 function throwQueryError(body, status, role) {
   const code = body?.code
-  const error = new Error(body?.message ?? 'Request failed')
+  const fallback = role === 'admin' ? strings.errors.update : strings.errors.send
+  const message =
+    code === '23505'
+      ? strings.errors.slotTaken
+      : status === 401
+        ? strings.errors.signInRequired
+        : fallback
+  const error = new Error(message)
   error.status = code === '23505' ? 409 : status
-  error.fieldErrors =
-    role === 'admin' && error.status === 401
-      ? { form: 'Physio sign-in required' }
-      : code === '23505'
-        ? { time: 'That slot was just taken' }
-        : { form: error.message }
+  error.fieldErrors = code === '23505' ? { time: message } : { form: message }
   throw error
 }
 
@@ -137,9 +141,9 @@ async function rest(role, path, options = {}) {
 
   const token = role === 'admin' ? await getAdminToken() : anonKey
   if (role === 'admin' && !token) {
-    const error = new Error('Physio sign-in required')
+    const error = new Error(strings.errors.signInRequired)
     error.status = 401
-    error.fieldErrors = { form: 'Physio sign-in required' }
+    error.fieldErrors = { form: strings.errors.signInRequired }
     throw error
   }
 
@@ -178,9 +182,9 @@ function fromRow(row) {
 function firstRow(rows) {
   const row = Array.isArray(rows) ? rows[0] : rows
   if (!row) {
-    const error = new Error('Appointment not found')
+    const error = new Error(strings.errors.notFound)
     error.status = 404
-    error.fieldErrors = { id: 'Appointment not found' }
+    error.fieldErrors = { id: strings.errors.notFound }
     throw error
   }
   return fromRow(row)

@@ -6,11 +6,8 @@ import {
   listSlots,
   updateAppointment,
 } from '../lib/supabase.js'
+import { strings } from '../i18n/strings.js'
 import { useAuth } from './auth.jsx'
-
-const CONFIG_ERROR =
-  'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.'
-const REACH_ERROR = 'Cannot reach the booking service. Check your Supabase URL and anon key.'
 
 const AppointmentsContext = createContext(null)
 
@@ -22,7 +19,7 @@ export function AppointmentsProvider({ children }) {
 
   const refresh = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      setApiError(CONFIG_ERROR)
+      setApiError(strings.errors.config)
       setLoading(false)
       return
     }
@@ -31,7 +28,7 @@ export function AppointmentsProvider({ children }) {
       setAppointments(isPhysio ? await listAppointments() : await listSlots())
       setApiError(null)
     } catch (error) {
-      setApiError(isPhysio && error.status === 401 ? 'Physio sign-in required.' : REACH_ERROR)
+      setApiError(isPhysio && error.status === 401 ? strings.errors.signInRequired : strings.errors.reach)
     } finally {
       setLoading(false)
     }

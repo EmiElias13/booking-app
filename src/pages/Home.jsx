@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SERVICES, TIME_SLOTS, formatDate, serviceLabel, todayISO } from '../data/clinic.js'
+import { config } from '../config/clinic.config.js'
+import { strings, t } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
 
 const emptyForm = {
@@ -42,10 +44,10 @@ export default function Home() {
 
   function validate() {
     const nextErrors = {}
-    if (!form.clientName.trim()) nextErrors.clientName = 'Tell us your name'
-    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) nextErrors.email = 'Enter a valid email'
-    if (!date) nextErrors.date = 'Pick a date'
-    if (!time) nextErrors.time = 'Pick a time slot'
+    if (!form.clientName.trim()) nextErrors.clientName = strings.errors.name
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) nextErrors.email = strings.errors.email
+    if (!date) nextErrors.date = strings.errors.date
+    if (!time) nextErrors.time = strings.errors.time
     return nextErrors
   }
 
@@ -75,7 +77,7 @@ export default function Home() {
       setErrors(
         Object.keys(error.fieldErrors ?? {}).length > 0
           ? error.fieldErrors
-          : { form: 'Could not send your request. Please try again.' },
+          : { form: strings.errors.send },
       )
     } finally {
       setSubmitting(false)
@@ -85,11 +87,8 @@ export default function Home() {
   return (
     <div className="page">
       <section className="hero enter">
-        <h1>Solicita una consulta</h1>
-        <p>
-          Elige un horario que te convenga. Nuestro equipo de fisioterapeutas revisa cada solicitud y la confirma, generalmente
-          dentro de unas pocas horas.
-        </p>
+        <h1>{strings.home.title}</h1>
+        <p>{strings.home.intro}</p>
       </section>
 
       {apiError && (
@@ -100,19 +99,24 @@ export default function Home() {
 
       {confirmation && (
         <div className="banner banner-success" role="status" key={confirmation.id}>
-          <strong>Solicitud enviada.</strong> {formatDate(confirmation.date)} a las {confirmation.time} para{' '}
-          {serviceLabel(confirmation.service)}. Te enviaremos un correo a {confirmation.email} una vez que el fisioterapeuta la apruebe.
+          <strong>{strings.home.successTitle}</strong>{' '}
+          {t(strings.home.success, {
+            date: formatDate(confirmation.date),
+            time: confirmation.time,
+            service: serviceLabel(confirmation.service),
+            email: confirmation.email,
+          })}
         </div>
       )}
 
       <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit} noValidate>
         <div className="field-grid">
           <label className={`field${errors.clientName ? ' error-shake' : ''}`}>
-            <span>Nombre completo</span>
+            <span>{strings.home.name}</span>
             <input
               value={form.clientName}
               onChange={(event) => updateField('clientName', event.target.value)}
-              placeholder="Nombre"
+              placeholder={strings.home.namePh}
               autoComplete="name"
               aria-invalid={Boolean(errors.clientName)}
             />
@@ -120,12 +124,12 @@ export default function Home() {
           </label>
 
           <label className={`field${errors.email ? ' error-shake' : ''}`}>
-            <span>Email</span>
+            <span>{strings.home.email}</span>
             <input
               type="email"
               value={form.email}
               onChange={(event) => updateField('email', event.target.value)}
-              placeholder="ejemplo@gmail.com"
+              placeholder={strings.home.emailPh}
               autoComplete="email"
               aria-invalid={Boolean(errors.email)}
             />
@@ -133,18 +137,20 @@ export default function Home() {
           </label>
 
           <label className="field">
-            <span>Telefono <em>(opcional)</em></span>
+            <span>
+              {strings.home.phone} <em>{strings.home.optional}</em>
+            </span>
             <input
               type="tel"
               value={form.phone}
               onChange={(event) => updateField('phone', event.target.value)}
-              placeholder="686 123 456"
+              placeholder={config.phonePlaceholder}
               autoComplete="tel"
             />
           </label>
 
           <label className="field">
-            <span>Tipo de consulta</span>
+            <span>{strings.home.service}</span>
             <select
               value={form.service}
               onChange={(event) => updateField('service', event.target.value)}
@@ -158,7 +164,7 @@ export default function Home() {
           </label>
 
           <label className={`field${errors.date ? ' error-shake' : ''}`}>
-            <span>Fecha</span>
+            <span>{strings.home.date}</span>
             <input
               type="date"
               min={todayISO()}
@@ -174,7 +180,9 @@ export default function Home() {
         </div>
 
         <fieldset className={`field slots${errors.time ? ' error-shake' : ''}`}>
-          <legend>Horarios disponibles {date && <em>· {formatDate(date)}</em>}</legend>
+          <legend>
+            {strings.home.slots} {date && <em>· {formatDate(date)}</em>}
+          </legend>
           <div className="slot-grid" key={date}>
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
@@ -190,7 +198,7 @@ export default function Home() {
                   }}
                 >
                   <span className="slot-label">{slot}</span>
-                  {taken && <small>agendado</small>}
+                  {taken && <small>{strings.home.slotTaken}</small>}
                 </button>
               )
             })}
@@ -200,13 +208,13 @@ export default function Home() {
 
         <label className="field">
           <span>
-            Queremos saber más sobre tu consulta <em>(opcional)</em>
+            {strings.home.notes} <em>{strings.home.optional}</em>
           </span>
           <textarea
             rows={3}
             value={form.notes}
             onChange={(event) => updateField('notes', event.target.value)}
-            placeholder="Dolores, molestias, etc. Puedes detallar tu consulta."
+            placeholder={strings.home.notesPh}
           />
         </label>
 
@@ -219,13 +227,13 @@ export default function Home() {
           aria-busy={submitting ? true : undefined}
         >
           {submitting && <span className="btn-spinner" aria-hidden="true" />}
-          {submitting ? 'Enviando…' : 'Solicitar consulta'}
+          {submitting ? strings.home.submitting : strings.home.submit}
         </button>
       </form>
 
       {myRequests.length > 0 && (
         <section className="card enter enter-delay-2">
-          <h2>Tus solicitudes</h2>
+          <h2>{strings.home.myRequests}</h2>
           <ul className="request-list">
             {myRequests.map((appointment) => (
               <li key={appointment.id} className="card-lift">
@@ -235,10 +243,14 @@ export default function Home() {
                   </strong>
                   <span className="muted">{serviceLabel(appointment.service)}</span>
                   {appointment.physioNote && (
-                    <span className="muted">Fisioterapeuta: {appointment.physioNote}</span>
+                    <span className="muted">
+                      {strings.home.clinicNote} {appointment.physioNote}
+                    </span>
                   )}
                 </div>
-                <span key={appointment.status} className={`status status-${appointment.status}`}>{appointment.status}</span>
+                <span key={appointment.status} className={`status status-${appointment.status}`}>
+                  {strings.status[appointment.status] ?? appointment.status}
+                </span>
               </li>
             ))}
           </ul>
