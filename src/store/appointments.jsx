@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   createAppointment,
-  isSupabaseConfigured,
+  isAppConfigured,
   listAppointments,
   listSlots,
   updateAppointment,
@@ -18,7 +18,7 @@ export function AppointmentsProvider({ children }) {
   const [apiError, setApiError] = useState(null)
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+    if (!isAppConfigured) {
       setApiError(strings.errors.config)
       setLoading(false)
       return

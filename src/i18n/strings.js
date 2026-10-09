@@ -27,7 +27,7 @@ export const strings = {
     signInRequired: 'Inicia sesión para ver las solicitudes.',
     update: 'No pudimos actualizar la solicitud. Inténtalo de nuevo.',
     reach: 'No pudimos conectar con el servicio de citas. Inténtalo en un momento.',
-    config: 'Falta configurar Supabase. Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY a .env.local.',
+    config: 'Falta configurar la app. Agrega VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY y VITE_CLINIC_ID a .env.local.',
     notFound: 'No encontramos esa cita.',
   },
   login: {
