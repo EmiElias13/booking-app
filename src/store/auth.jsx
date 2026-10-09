@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { getSession, signIn as signInRequest, signOut as signOutRequest } from '../lib/supabase.js'
+import { getSession, signIn as signInRequest, signOut as signOutRequest } from '../lib/api.js'
 
 const AuthContext = createContext(null)
 

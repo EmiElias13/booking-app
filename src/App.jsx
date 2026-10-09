@@ -57,6 +57,11 @@ export default function App() {
       </header>
 
       <main className="app-main">
+        {import.meta.env.VITE_DEMO === 'true' && (
+          <div className="banner" role="status">
+            {strings.demo.banner}
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

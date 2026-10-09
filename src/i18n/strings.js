@@ -48,6 +48,10 @@ export const strings = {
     loading: 'Cargando solicitudes…',
     empty: 'Aún no hay nada aquí. Las solicitudes de la página de citas aparecerán en esta lista.',
   },
+  demo: {
+    loginHint: 'Modo demo: entra con cualquier correo y contraseña.',
+    banner: 'Estás viendo una demo. Los datos no se guardan.',
+  },
 }
 
 export function t(template, vars = {}) {
