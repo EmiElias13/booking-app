@@ -1,0 +1,38 @@
+# Copy this workflow into each clinic deploy repo.
+#
+# Set in the clinic repo:
+# - Actions variable CLINIC_ID
+# - secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (anon key only, never service_role)
+# - Settings → Pages → Source = "GitHub Actions"
+# - custom domain in Settings → Pages
+#
+# The `@ref` on the `uses:` line and `app_ref` must point at the same branch so
+# the workflow and the code it builds always match. Until the template is merged
+# to main, use `template/booking-app` for both.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [app-release]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: EmiElias13/booking-app/.github/workflows/build-clinic.yml@main
+    with:
+      clinic_id: ${{ vars.CLINIC_ID }}
+      base_path: /
+      app_ref: main
+    secrets:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
