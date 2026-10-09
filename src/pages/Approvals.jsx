@@ -11,7 +11,6 @@ const FILTERS = [
 ]
 
 const EXIT_MS = 240
-const CHIP_INDICATOR_BASE = 100
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -21,7 +20,7 @@ export default function Approvals() {
   const { appointments, loading, apiError, decide } = useAppointments()
   const [filter, setFilter] = useState('pending')
   const [notes, setNotes] = useState({})
-  const [busyId, setBusyId] = useState(null)
+  const [busyIds, setBusyIds] = useState({})
   const [leaving, setLeaving] = useState({})
   const [decisionError, setDecisionError] = useState(null)
   const filterRowRef = useRef(null)
@@ -74,7 +73,7 @@ export default function Approvals() {
 
   async function handleDecision(appointment, status, note = notes[appointment.id] ?? '') {
     const nextNote = note.trim()
-    setBusyId(appointment.id)
+    setBusyIds((current) => ({ ...current, [appointment.id]: true }))
     setDecisionError(null)
 
     const willExit =
@@ -90,7 +89,11 @@ export default function Approvals() {
       } catch (error) {
         setDecisionError(error.message || 'Could not update the request.')
       } finally {
-        setBusyId(null)
+        setBusyIds((current) => {
+          const next = { ...current }
+          delete next[appointment.id]
+          return next
+        })
       }
       return
     }
@@ -117,7 +120,11 @@ export default function Approvals() {
     } else {
       setDecisionError(result.error?.message || 'Could not update the request.')
     }
-    setBusyId(null)
+    setBusyIds((current) => {
+      const next = { ...current }
+      delete next[appointment.id]
+      return next
+    })
   }
 
   const bannerError = apiError || decisionError
@@ -155,11 +162,10 @@ export default function Approvals() {
           className="chip-indicator"
           aria-hidden="true"
           style={{
+            width: indicator.width || undefined,
             height: indicator.height || undefined,
             opacity: indicator.width ? 1 : 0,
-            transform: `translate(${indicator.x}px, ${indicator.y}px) scaleX(${
-              (indicator.width || CHIP_INDICATOR_BASE) / CHIP_INDICATOR_BASE
-            })`,
+            transform: `translate(${indicator.x}px, ${indicator.y}px)`,
           }}
         />
         {FILTERS.map((option) => (
@@ -231,7 +237,7 @@ export default function Approvals() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      disabled={busyId === appointment.id}
+                      disabled={Boolean(busyIds[appointment.id])}
                       onClick={() => handleDecision(appointment, 'approved')}
                     >
                       Approve
@@ -239,7 +245,7 @@ export default function Approvals() {
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      disabled={busyId === appointment.id}
+                      disabled={Boolean(busyIds[appointment.id])}
                       onClick={() => handleDecision(appointment, 'declined')}
                     >
                       Decline
@@ -254,7 +260,7 @@ export default function Approvals() {
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    disabled={busyId === appointment.id}
+                    disabled={Boolean(busyIds[appointment.id])}
                     onClick={() => handleDecision(appointment, 'pending', appointment.physioNote)}
                   >
                     Move back to pending

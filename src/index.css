@@ -676,13 +676,14 @@ textarea {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100px;
   border-radius: 999px;
   background: var(--accent-soft);
   pointer-events: none;
   z-index: 0;
-  transform-origin: left center;
-  transition: transform var(--duration-md) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+  transition:
+    transform var(--duration-md) var(--ease-out),
+    width var(--duration-md) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
 }
 
 .chip {
