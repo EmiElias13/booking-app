@@ -5,7 +5,7 @@ import {
   listAppointments,
   listSlots,
   updateAppointment,
-} from '../lib/supabase.js'
+} from '../lib/api.js'
 import { strings } from '../i18n/strings.js'
 import { useAuth } from './auth.jsx'
 

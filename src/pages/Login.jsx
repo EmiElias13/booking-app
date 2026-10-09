@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { isAppConfigured } from '../lib/supabase.js'
+import { isAppConfigured } from '../lib/api.js'
 import { strings } from '../i18n/strings.js'
 import { useAuth } from '../store/auth.jsx'
 
@@ -36,6 +36,7 @@ export default function Login() {
       <section className="hero enter">
         <h1>{strings.login.title}</h1>
         <p>{strings.login.intro}</p>
+        {import.meta.env.VITE_DEMO === 'true' && <p className="muted">{strings.demo.loginHint}</p>}
       </section>
 
       {!isAppConfigured && (
