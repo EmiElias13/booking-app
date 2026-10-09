@@ -1,0 +1,55 @@
+export const strings = {
+  meta: { title: '{name} · Agenda tu cita', logoAlt: '{name}' },
+  nav: { approvals: 'Solicitudes', signOut: 'Cerrar sesión' },
+  status: { pending: 'Pendiente', approved: 'Aprobada', declined: 'Rechazada' },
+  home: {
+    title: 'Solicita una cita',
+    intro: 'Elige el horario que mejor te acomode. Nuestro equipo revisa cada solicitud y te confirma, normalmente en unas horas.',
+    name: 'Nombre completo', namePh: 'Tu nombre',
+    email: 'Correo electrónico', emailPh: 'tucorreo@ejemplo.com',
+    phone: 'Teléfono', optional: '(opcional)',
+    service: 'Tipo de cita', date: 'Fecha',
+    slots: 'Horarios disponibles', slotTaken: 'Ocupado',
+    notes: '¿Algo que debamos saber?', notesPh: 'Cuéntanos brevemente el motivo de tu cita.',
+    submit: 'Solicitar cita', submitting: 'Enviando…',
+    successTitle: 'Solicitud enviada.',
+    success: '{date} a las {time} · {service}. Te escribiremos a {email} cuando la clínica confirme tu cita.',
+    myRequests: 'Tus solicitudes', clinicNote: 'Mensaje de la clínica:',
+  },
+  errors: {
+    name: 'Escribe tu nombre',
+    email: 'Escribe un correo válido',
+    date: 'Elige una fecha',
+    time: 'Elige un horario',
+    slotTaken: 'Alguien acaba de apartar este horario. Elige otro.',
+    send: 'No pudimos enviar tu solicitud. Inténtalo de nuevo.',
+    signIn: 'No pudimos iniciar sesión. Revisa tu correo y contraseña.',
+    signInRequired: 'Inicia sesión para ver las solicitudes.',
+    update: 'No pudimos actualizar la solicitud. Inténtalo de nuevo.',
+    reach: 'No pudimos conectar con el servicio de citas. Inténtalo en un momento.',
+    config: 'Falta configurar Supabase. Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY a .env.local.',
+    notFound: 'No encontramos esa cita.',
+  },
+  login: {
+    title: 'Acceso del equipo',
+    intro: 'Solo el equipo de la clínica puede aprobar citas. Los pacientes pueden solicitar una sin crear cuenta.',
+    email: 'Correo electrónico', emailPh: 'equipo@tuclinica.com',
+    password: 'Contraseña',
+    submit: 'Iniciar sesión', submitting: 'Entrando…',
+  },
+  approvals: {
+    title: 'Solicitudes de cita',
+    intro: 'Revisa las solicitudes nuevas, confirma las que te funcionen y rechaza las demás.',
+    filters: { pending: 'Pendientes', approved: 'Aprobadas', declined: 'Rechazadas', all: 'Todas' },
+    client: 'Paciente', email: 'Correo', phone: 'Teléfono',
+    notePh: 'Mensaje para el paciente (opcional)',
+    approve: 'Aprobar', decline: 'Rechazar', backToPending: 'Regresar a pendiente',
+    yourNote: 'Tu mensaje:',
+    loading: 'Cargando solicitudes…',
+    empty: 'Aún no hay nada aquí. Las solicitudes de la página de citas aparecerán en esta lista.',
+  },
+}
+
+export function t(template, vars = {}) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) => (vars[key] == null ? '' : String(vars[key])))
+}
