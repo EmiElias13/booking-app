@@ -1,7 +1,7 @@
 -- PR 2 QA suite: multi-clinic isolation + tiers (plan/staff_limit, roles, has_role, staff_id).
 -- Matches Emiliano's decisions of 2026-10-12:
---   roles: admin = everything incl. managing staff; therapist = own + unassigned appointments, can decide them;
---          front_desk = whole clinic, can decide, can read notes.
+--   roles: all three see and decide every appointment of their own clinic; only admin manages staff;
+--          staff_id is server-only (not settable from the browser).
 --   limits: basico 3, clinica 6, follows plan; per-clinic override = Lead's proposal [PENDING EMILIANO OK].
 --   downgrade: existing staff stay, new inserts blocked while over the limit.
 --   removed staff: appointments kept, staff_id -> NULL.
@@ -154,13 +154,13 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select ok(public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['therapist']) and not public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['admin']), 'H6 therapist: true only for therapist');
-select is((select array_agg(id order by id)::text from public.appointments), '{aaaaaaaa-0000-4000-8000-0000000000a1,aaaaaaaa-0000-4000-8000-0000000000a2}', 'T1 therapist sees own + unassigned only');
-select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 0, 'T2 therapist cannot see appointments assigned to another therapist');
+select is((select array_agg(id order by id)::text from public.appointments), '{aaaaaaaa-0000-4000-8000-0000000000a1,aaaaaaaa-0000-4000-8000-0000000000a2,aaaaaaaa-0000-4000-8000-0000000000a3}', 'T1 therapist sees every appointment of own clinic (own, unassigned, other therapist''s)');
+select is((select notes from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'Hombro', 'T2 therapist sees (incl. notes) an appointment assigned to another therapist');
 update public.appointments set status='approved' where id='aaaaaaaa-0000-4000-8000-0000000000a2';
 select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a2'), 'approved', 'T3 therapist can approve an unassigned appointment');
 update public.appointments set status='declined', staff_note='Lo siento' where id='aaaaaaaa-0000-4000-8000-0000000000a1';
 select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 'declined', 'T4 therapist can decline own appointment');
-update public.appointments set status='approved' where id='aaaaaaaa-0000-4000-8000-0000000000a3';  -- verified in V3
+update public.appointments set status='declined' where id='aaaaaaaa-0000-4000-8000-0000000000a3';  -- verified in V3
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('cccccccc-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-00000000000c')$$, '42501', null, 'T5 therapist cannot add staff');
 update public.staff set role='admin' where user_id='aaaaaaaa-0000-4000-8000-000000000002';  -- self-escalation, verified in V4
 select throws_ok($$delete from public.appointments$$, '42501', null, 'D3 therapist cannot delete appointments');
@@ -172,10 +172,10 @@ reset role;
 -- ============ therapist 2 of clinic A ============
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000004","role":"authenticated"}',true);
-select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 0, 'T6 therapist 2 cannot see therapist 1''s appointment');
-select is((select count(*)::int from public.appointments where id in ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-0000000000a3')), 2, 'T7 therapist 2 sees own + unassigned');
+select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 1, 'T6 therapist 2 sees therapist 1''s appointment');
+select is((select count(*)::int from public.appointments), 3, 'T7 therapist 2 sees the whole clinic and nothing else');
 reset role;
-select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'pending', 'V3 therapist 1 could not decide therapist 2''s appointment');
+select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'declined', 'V3 therapist 1 can decide therapist 2''s appointment');
 select is((select role from public.staff where user_id='aaaaaaaa-0000-4000-8000-000000000002'), 'therapist', 'V4 therapist could not self-escalate to admin');
 select is((select count(*)::int from public.staff where clinic_id='aaaaaaaa-0000-4000-8000-00000000000c'), 5, 'V5 therapist could not delete staff');
 
