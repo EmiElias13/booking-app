@@ -27,7 +27,7 @@ export default function App() {
         <div className="brand">
           <NavLink to="/">
             {logoSrc ? (
-              <img className="brand-logo" src={logoSrc} alt={config.name} />
+              <img className="brand-logo" src={logoSrc} alt={config.logoAlt || config.name} />
             ) : (
               <>
                 <Monogram />

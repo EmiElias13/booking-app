@@ -17,7 +17,15 @@ on:
       app_ref:
         description: booking-app git ref to build
         type: string
-        default: main
+        default: template/booking-app   # main has no build-clinic.yml yet
+      branding_repo:
+        description: Clinic repo with clinic.config.json and public/ (owner/name). Empty = template defaults.
+        type: string
+        default: ''
+      branding_ref:
+        description: Git ref of branding_repo (empty = its default branch)
+        type: string
+        default: ''
       node_version:
         description: Node.js version
         type: string
@@ -46,8 +54,28 @@ jobs:
           fi
       - uses: actions/checkout@v4
         with:
-          repository: EmiElias13/booking-app
+          repository: EmiEliasDev/booking-app
           ref: ${{ inputs.app_ref }}
+      - name: Checkout clinic branding
+        if: inputs.branding_repo != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.branding_repo }}
+          ref: ${{ inputs.branding_ref }}
+          path: .clinic
+          persist-credentials: false
+      - name: Apply clinic branding
+        if: inputs.branding_repo != ''
+        env:
+          BRANDING_REPO: ${{ inputs.branding_repo }}
+        run: |
+          test -f .clinic/clinic.config.json || { echo "clinic.config.json missing in $BRANDING_REPO" >&2; exit 1; }
+          node -e "JSON.parse(require('fs').readFileSync('.clinic/clinic.config.json','utf8'))" || { echo "clinic.config.json is not valid JSON" >&2; exit 1; }
+          if [ -d .clinic/public ] && [ -n "$(find .clinic/public -type l)" ]; then
+            echo "Symlinks are not allowed in $BRANDING_REPO public/:" >&2; find .clinic/public -type l >&2; exit 1
+          fi
+          if [ -d .clinic/public ]; then cp -R .clinic/public/. public/; fi
+          echo "CLINIC_CONFIG_PATH=$PWD/.clinic/clinic.config.json" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
@@ -59,6 +87,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_CLINIC_ID: ${{ inputs.clinic_id }}
           VITE_BASE_PATH: ${{ inputs.base_path }}
+      # SPA fallback for Pages: `npm run build` already copies dist/index.html to dist/404.html.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
