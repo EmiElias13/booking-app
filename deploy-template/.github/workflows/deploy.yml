@@ -1,0 +1,42 @@
+# Copy this workflow into each clinic deploy repo.
+#
+# Set in the clinic repo:
+# - Actions variable CLINIC_ID
+# - secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (anon key only, never service_role)
+# - Settings → Pages → Source = "GitHub Actions"
+# - optional: custom domain in Settings → Pages
+#
+# The `@ref` on the `uses:` line and `app_ref` must point at the same branch so
+# the workflow and the code it builds always match. Until the template is merged
+# to main, use `template/booking-app` for both.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]   # redeploy when this clinic repo's branding changes
+  workflow_dispatch:
+  repository_dispatch:
+    types: [app-release]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: EmiEliasDev/booking-app/.github/workflows/build-clinic.yml@template/booking-app
+    with:
+      clinic_id: ${{ vars.CLINIC_ID }}
+      base_path: /<repo-name>/          # "/" only with a custom domain
+      app_ref: template/booking-app     # must match the @ref above; switch both to main later
+      branding_repo: ${{ github.repository }}   # this repo: clinic.config.json + public/
+      branding_ref: ${{ github.sha }}
+    secrets:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

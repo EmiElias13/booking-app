@@ -1,20 +1,83 @@
-# booking-app
+# Clinic booking
 
-Physio appointment booking UI. The React app talks to a Supabase table over HTTP — no backend server.
+One shared codebase (this repo) for the booking UI, one small deploy repo per clinic (copy `deploy-template/`), and one shared Supabase project.
 
-Guest booking uses the anon key. Approvals require a signed-in physio (Supabase Auth). HTTP middleware blocks each role from the other role's REST calls; RLS enforces the same split in the database.
+Guests request a slot on `/`. Clinic staff sign in at `/login` and review requests on `/approvals`.
 
-## Setup
+## Local development
 
-1. Create a [Supabase](https://supabase.com) project.
-2. Run `supabase/schema.sql` in the project's SQL editor.
-3. Create an Auth user for the physio (Authentication → Users → Add user).
-4. Copy `.env.example` to `.env.local` and fill in the project URL and anon key (Settings → API).
-5. Install and start the app:
+```bash
+cp .env.example .env.local
+```
+
+Fill in `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_CLINIC_ID`. Then:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Guests request slots on `/`. The physio signs in at `/login` to review them on `/approvals`.
+**Demo mode** (no Supabase or clinic ID): in `.env.local` set `VITE_DEMO=true`, then `npm run dev`. Sign in with any email and password. Data stays in memory and is not saved.
+
+## `clinic.config` fields
+
+Branding and clinic-specific options live in `src/config/clinic.config.js`:
+
+| Field | Purpose |
+| --- | --- |
+| `name` | Full clinic name (header, document title, logo alt) |
+| `shortName` | Short label |
+| `logo` | Path under `public/` for a logo image. Empty string shows a monogram from the first letter of `name` |
+| `logoAlt` | Alt text for the logo (defaults to `name`) |
+| `locale` | Locale for dates (e.g. `es-MX`) |
+| `themeColor` | Browser theme color |
+| `accentSoft` | Light accent (backgrounds, highlights) |
+| `accentDeep` | Dark accent (hover, strong text) |
+| `phonePlaceholder` | Placeholder on the booking phone field |
+| `services` | `{ id, label }` options for the booking form |
+| `timeSlots` | Bookable times (`HH:MM`) |
+| `strings` | Copy overrides, deep-merged over `src/i18n/strings.js` (arrays replace) |
+| `contact` | Clinic contact details object |
+| `clinicId` | From `VITE_CLINIC_ID` (this clinic’s id in the shared clinics table) |
+
+User-facing copy lives in `src/i18n/strings.js`. Interpolate with `t(template, vars)`.
+
+## Adding a new clinic
+
+1. Create the clinic deploy repo and copy `deploy-template/.github/workflows/deploy.yml` into it.
+2. In that repo add `clinic.config.json` (keys from the table above; unknown keys are dropped and `clinicId` is ignored) and a `public/` folder for assets such as the logo. Don't edit `src/config/clinic.config.js`: it only holds template defaults. Pushing to the clinic repo's `main` redeploys it.
+3. In the deploy repo, set Actions variable `CLINIC_ID` and secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon public key only, never `service_role`).
+4. Settings → Pages → Source = GitHub Actions.
+5. Optional: add a custom domain and DNS records under Settings → Pages (then set `base_path: /`).
+6. Add the Pages URL to Supabase Auth → URL Configuration → Redirect URLs.
+
+The `@ref` on the workflow `uses:` line and `app_ref` must point at the same branch so the workflow and the code it builds always match. Until the template is merged to `main`, use `template/booking-app` for both.
+
+If this `booking-app` repo is private, Settings → Actions → General → Access must allow the clinic deploy repos to use its workflows.
+
+## Supabase schema
+
+Coming in a later PR.
+
+## Clinic branding from the clinic deploy repo
+
+Each clinic deploy repo (e.g. `EmiEliasDev/rehabireb-web`) can hold:
+
+```
+clinic.config.json   # branding/config overrides (optional keys below)
+public/              # assets copied over the template's public/ (e.g. logo.png)
+.github/workflows/deploy.yml
+```
+
+`build-clinic.yml` checks it out (`branding_repo` / `branding_ref`), validates the JSON,
+copies `public/` over the template's and sets `CLINIC_CONFIG_PATH` for `vite build`.
+Without a clinic repo the build is the plain "Tu Clínica" template.
+
+Keys: `name`, `shortName`, `logo` (path in `public/`), `logoAlt`, `locale`, `themeColor`,
+`accentSoft`, `accentDeep`, `phonePlaceholder`, `services`, `timeSlots`, `strings`
+(deep-merged over `src/i18n/strings.js`), `contact`. Arrays replace the defaults.
+`clinicId` is ignored here; it only comes from the `CLINIC_ID` variable.
+
+**The config is public in the bundle. Never put secrets (service_role keys etc.) in it.**
+
+Local test: `CLINIC_CONFIG_PATH=../rehabireb-web/clinic.config.json VITE_BASE_PATH=/rehabireb-web/ npm run build`

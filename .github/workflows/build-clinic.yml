@@ -1,0 +1,107 @@
+# Called by each clinic's deploy repo. Builds this app and deploys it
+# as that repo's GitHub Pages site.
+
+name: Build clinic
+
+on:
+  workflow_call:
+    inputs:
+      clinic_id:
+        description: Clinic id in the shared clinics table
+        type: string
+        required: true
+      base_path:
+        description: Vite public base path
+        type: string
+        default: /
+      app_ref:
+        description: booking-app git ref to build
+        type: string
+        default: template/booking-app   # main has no build-clinic.yml yet
+      branding_repo:
+        description: Clinic repo with clinic.config.json and public/ (owner/name). Empty = template defaults.
+        type: string
+        default: ''
+      branding_ref:
+        description: Git ref of branding_repo (empty = its default branch)
+        type: string
+        default: ''
+      node_version:
+        description: Node.js version
+        type: string
+        default: '22'
+    secrets:
+      VITE_SUPABASE_URL:
+        required: true
+      VITE_SUPABASE_ANON_KEY:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Require clinic_id
+        env:
+          CLINIC_ID: ${{ inputs.clinic_id }}
+        run: |
+          if [ -z "$CLINIC_ID" ]; then
+            echo "clinic_id is required and must not be empty." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          repository: EmiEliasDev/booking-app
+          ref: ${{ inputs.app_ref }}
+      - name: Checkout clinic branding
+        if: inputs.branding_repo != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.branding_repo }}
+          ref: ${{ inputs.branding_ref }}
+          path: .clinic
+          persist-credentials: false
+      - name: Apply clinic branding
+        if: inputs.branding_repo != ''
+        env:
+          BRANDING_REPO: ${{ inputs.branding_repo }}
+        run: |
+          test -f .clinic/clinic.config.json || { echo "clinic.config.json missing in $BRANDING_REPO" >&2; exit 1; }
+          node -e "JSON.parse(require('fs').readFileSync('.clinic/clinic.config.json','utf8'))" || { echo "clinic.config.json is not valid JSON" >&2; exit 1; }
+          if [ -d .clinic/public ] && [ -n "$(find .clinic/public -type l)" ]; then
+            echo "Symlinks are not allowed in $BRANDING_REPO public/:" >&2; find .clinic/public -type l >&2; exit 1
+          fi
+          if [ -d .clinic/public ]; then cp -R .clinic/public/. public/; fi
+          echo "CLINIC_CONFIG_PATH=$PWD/.clinic/clinic.config.json" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CLINIC_ID: ${{ inputs.clinic_id }}
+          VITE_BASE_PATH: ${{ inputs.base_path }}
+      # SPA fallback for Pages: `npm run build` already copies dist/index.html to dist/404.html.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
