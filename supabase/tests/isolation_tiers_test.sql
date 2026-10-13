@@ -2,7 +2,7 @@
 -- Matches Emiliano's decisions of 2026-10-12:
 --   roles: all three see and decide every appointment of their own clinic; only admin manages staff;
 --          staff_id is server-only (not settable from the browser).
---   limits: basico 3, clinica 6, follows plan; per-clinic override = Lead's proposal [PENDING EMILIANO OK].
+--   limits: basico 3, clinica 6, follows plan; per-clinic manual override is service-role/SQL only (admins cannot change it).
 --   downgrade: existing staff stay, new inserts blocked while over the limit.
 --   removed staff: appointments kept, staff_id -> NULL.
 -- pgTAP style for `supabase test db` (copy to supabase/tests/). Everything rolls back.
@@ -13,7 +13,7 @@
 -- Sections: [P] ported 15  [G] guest  [R] RPC  [L] limits  [O] role values  [H] has_role
 --           [M] staff management  [T] therapist  [F] front desk  [S] staff_id  [D] deletes  [V] verifications
 begin;
-select plan(106);
+select plan(108);
 
 -- ============ fixtures (service role) ============
 insert into auth.users (id, email) values
@@ -64,15 +64,15 @@ select lives_ok($$update public.clinics set plan='basico' where slug='clinic-a'$
 select is((select count(*)::int from public.staff where clinic_id='aaaaaaaa-0000-4000-8000-00000000000c'), 4, 'L11 downgrade keeps existing staff');
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('aaaaaaaa-0000-4000-8000-000000000005','aaaaaaaa-0000-4000-8000-00000000000c')$$, '23514', null, 'L12 new staff blocked while over the limit');
 update public.clinics set plan='clinica' where slug='clinic-a';
--- per-clinic override [PENDING EMILIANO OK]
-select is(public.clinic_staff_limit('eeeeeeee-0000-4000-8000-00000000000c'), 2, 'L13 [PENDING] override beats the plan default');
+-- per-clinic manual override: service-role/SQL only (Emiliano, 2026-10-12)
+select is(public.clinic_staff_limit('eeeeeeee-0000-4000-8000-00000000000c'), 2, 'L13 service-role override beats the plan default');
 select lives_ok($$insert into public.staff (user_id, clinic_id) values
   ('eeeeeeee-0000-4000-8000-000000000001','eeeeeeee-0000-4000-8000-00000000000c'),
-  ('eeeeeeee-0000-4000-8000-000000000002','eeeeeeee-0000-4000-8000-00000000000c')$$, 'L14 [PENDING] override: up to 2 succeeds');
-select throws_ok($$insert into public.staff (user_id, clinic_id) values ('eeeeeeee-0000-4000-8000-000000000003','eeeeeeee-0000-4000-8000-00000000000c')$$, '23514', null, 'L15 [PENDING] override: 3rd rejected');
-select throws_ok($$update public.clinics set staff_limit=0 where slug='clinic-l'$$, '23514', null, 'L16 [PENDING] override must be > 0');
+  ('eeeeeeee-0000-4000-8000-000000000002','eeeeeeee-0000-4000-8000-00000000000c')$$, 'L14 override: up to 2 succeeds');
+select throws_ok($$insert into public.staff (user_id, clinic_id) values ('eeeeeeee-0000-4000-8000-000000000003','eeeeeeee-0000-4000-8000-00000000000c')$$, '23514', null, 'L15 override: 3rd rejected');
+select throws_ok($$update public.clinics set staff_limit=0 where slug='clinic-l'$$, '23514', null, 'L16 override must be > 0');
 select lives_ok($$update public.clinics set staff_limit=null where slug='clinic-l';
-  insert into public.staff (user_id, clinic_id) values ('eeeeeeee-0000-4000-8000-000000000003','eeeeeeee-0000-4000-8000-00000000000c')$$, 'L17 [PENDING] clearing the override returns to the plan default (3)');
+  insert into public.staff (user_id, clinic_id) values ('eeeeeeee-0000-4000-8000-000000000003','eeeeeeee-0000-4000-8000-00000000000c')$$, 'L17 service role clearing the override returns to the plan default (3)');
 
 -- ============ [O] role values ============
 select throws_ok($$update public.staff set role='owner' where user_id='bbbbbbbb-0000-4000-8000-000000000001'$$, '23514', null, 'O1 legacy role owner rejected');
@@ -141,7 +141,9 @@ select is((select role from public.staff where user_id='aaaaaaaa-0000-4000-8000-
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-00000000000c')$$, '42501', null, 'M3 admin A cannot add staff to clinic B');
 update public.staff set role='front_desk' where clinic_id='bbbbbbbb-0000-4000-8000-00000000000c';  -- verified in V2
 select throws_ok($$update public.staff set clinic_id='bbbbbbbb-0000-4000-8000-00000000000c' where user_id='aaaaaaaa-0000-4000-8000-000000000005'$$, '42501', null, 'M4 admin A cannot move staff into clinic B');
-select throws_ok($$update public.clinics set plan='clinica', staff_limit=99$$, '42501', null, 'M5 admin cannot change plan/limit (service role only)');
+select throws_ok($$update public.clinics set plan='clinica'$$, '42501', null, 'M5 admin cannot change the plan (service role only)');
+select throws_ok($$update public.clinics set staff_limit=99$$, '42501', null, 'M5b admin cannot set the manual staff_limit override (service-role/SQL only)');
+select throws_ok($$update public.clinics set staff_limit=null$$, '42501', null, 'M5c admin cannot clear the manual override either');
 select is((select count(*)::int from public.staff where clinic_id='bbbbbbbb-0000-4000-8000-00000000000c'), 0, 'M6 admin A cannot see clinic B staff');
 select throws_ok($$update public.appointments set staff_id='aaaaaaaa-0000-4000-8000-000000000004' where id='aaaaaaaa-0000-4000-8000-0000000000a1'$$, '42501', null, 'S6 staff_id not settable from the browser (who assigns: open question)');
 select is((select count(*)::int from public.appointments where staff_id='bbbbbbbb-0000-4000-8000-000000000001'), 0, 'S7 admin A cannot find clinic B rows by staff_id');
