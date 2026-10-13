@@ -13,8 +13,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]   # branding changes redeploy
   workflow_dispatch:
   repository_dispatch:
     types: [app-release]
