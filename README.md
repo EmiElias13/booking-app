@@ -53,3 +53,26 @@ If this `booking-app` repo is private, Settings → Actions → General → Acce
 ## Supabase schema
 
 Coming in a later PR.
+
+## Clinic branding from the clinic deploy repo
+
+Each clinic deploy repo (e.g. `EmiEliasDev/rehabireb-web`) can hold:
+
+```
+clinic.config.json   # branding/config overrides (optional keys below)
+public/              # assets copied over the template's public/ (e.g. logo.png)
+.github/workflows/deploy.yml
+```
+
+`build-clinic.yml` checks it out (`branding_repo` / `branding_ref`), validates the JSON,
+copies `public/` over the template's and sets `CLINIC_CONFIG_PATH` for `vite build`.
+Without a clinic repo the build is the plain "Tu Clínica" template.
+
+Keys: `name`, `shortName`, `logo` (path in `public/`), `logoAlt`, `locale`, `themeColor`,
+`accentSoft`, `accentDeep`, `phonePlaceholder`, `services`, `timeSlots`, `strings`
+(deep-merged over `src/i18n/strings.js`), `contact`. Arrays replace the defaults.
+`clinicId` is ignored here; it only comes from the `CLINIC_ID` variable.
+
+**The config is public in the bundle. Never put secrets (service_role keys etc.) in it.**
+
+Local test: `CLINIC_CONFIG_PATH=../rehabireb-web/clinic.config.json VITE_BASE_PATH=/rehabireb-web/ npm run build`
