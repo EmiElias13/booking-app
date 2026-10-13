@@ -58,10 +58,13 @@ const baseStrings = {
 }
 
 // Clinic overrides from clinic.config.json `strings`; unknown keys kept, arrays replaced.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 export function deepMerge(base, over) {
   if (!over || typeof over !== 'object') return base
   const out = { ...base }
   for (const [k, v] of Object.entries(over)) {
+    if (UNSAFE_KEYS.has(k)) continue
     out[k] = v && typeof v === 'object' && !Array.isArray(v) && typeof base[k] === 'object'
       ? deepMerge(base[k], v) : v
   }

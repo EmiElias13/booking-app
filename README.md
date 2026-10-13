@@ -28,22 +28,27 @@ Branding and clinic-specific options live in `src/config/clinic.config.js`:
 | `name` | Full clinic name (header, document title, logo alt) |
 | `shortName` | Short label |
 | `logo` | Path under `public/` for a logo image. Empty string shows a monogram from the first letter of `name` |
+| `logoAlt` | Alt text for the logo (defaults to `name`) |
 | `locale` | Locale for dates (e.g. `es-MX`) |
 | `themeColor` | Browser theme color |
+| `accentSoft` | Light accent (backgrounds, highlights) |
+| `accentDeep` | Dark accent (hover, strong text) |
 | `phonePlaceholder` | Placeholder on the booking phone field |
 | `services` | `{ id, label }` options for the booking form |
 | `timeSlots` | Bookable times (`HH:MM`) |
+| `strings` | Copy overrides, deep-merged over `src/i18n/strings.js` (arrays replace) |
+| `contact` | Clinic contact details object |
 | `clinicId` | From `VITE_CLINIC_ID` (this clinic’s id in the shared clinics table) |
 
 User-facing copy lives in `src/i18n/strings.js`. Interpolate with `t(template, vars)`.
 
 ## Adding a new clinic
 
-1. Fill branding in `src/config/clinic.config.js` (name, logo, locale, theme, services, slots) and adjust copy in `src/i18n/strings.js` if needed.
-2. Create a deploy repo from `deploy-template/` (copy `.github/workflows/deploy.yml` into that repo).
+1. Create the clinic deploy repo and copy `deploy-template/.github/workflows/deploy.yml` into it.
+2. In that repo add `clinic.config.json` (keys from the table above; unknown keys are dropped and `clinicId` is ignored) and a `public/` folder for assets such as the logo. Don't edit `src/config/clinic.config.js`: it only holds template defaults. Pushing to the clinic repo's `main` redeploys it.
 3. In the deploy repo, set Actions variable `CLINIC_ID` and secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon public key only, never `service_role`).
 4. Settings → Pages → Source = GitHub Actions.
-5. Add the custom domain and DNS records under Settings → Pages.
+5. Optional: add a custom domain and DNS records under Settings → Pages (then set `base_path: /`).
 6. Add the Pages URL to Supabase Auth → URL Configuration → Redirect URLs.
 
 The `@ref` on the workflow `uses:` line and `app_ref` must point at the same branch so the workflow and the code it builds always match. Until the template is merged to `main`, use `template/booking-app` for both.

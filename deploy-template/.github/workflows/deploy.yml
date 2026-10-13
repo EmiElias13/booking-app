@@ -4,7 +4,7 @@
 # - Actions variable CLINIC_ID
 # - secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (anon key only, never service_role)
 # - Settings → Pages → Source = "GitHub Actions"
-# - custom domain in Settings → Pages
+# - optional: custom domain in Settings → Pages
 #
 # The `@ref` on the `uses:` line and `app_ref` must point at the same branch so
 # the workflow and the code it builds always match. Until the template is merged
@@ -13,6 +13,8 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]   # redeploy when this clinic repo's branding changes
   workflow_dispatch:
   repository_dispatch:
     types: [app-release]

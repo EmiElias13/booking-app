@@ -6,9 +6,12 @@ import react from '@vitejs/plugin-react'
 // clinic.config.json. Unset = template defaults ("Tu Clínica").
 // This JSON is baked into the public bundle: never put secrets in it.
 const configPath = process.env.CLINIC_CONFIG_PATH
-// clinicId is dropped here too: it only ever comes from VITE_CLINIC_ID.
-// eslint-disable-next-line no-unused-vars
-const { clinicId: _ignored, ...clinic } = configPath ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {}
+// Only known keys reach the bundle; anything else (incl. clinicId, which only
+// ever comes from VITE_CLINIC_ID) is dropped.
+const ALLOWED_KEYS = ['name', 'shortName', 'logo', 'logoAlt', 'locale', 'themeColor', 'accent', 'accentSoft',
+  'accentDeep', 'phonePlaceholder', 'services', 'slots', 'timeSlots', 'strings', 'contact']
+const raw = configPath ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {}
+const clinic = Object.fromEntries(ALLOWED_KEYS.filter((k) => Object.hasOwn(raw, k)).map((k) => [k, raw[k]]))
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
 
 // https://vite.dev/config/

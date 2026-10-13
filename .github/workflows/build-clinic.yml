@@ -63,11 +63,17 @@ jobs:
           repository: ${{ inputs.branding_repo }}
           ref: ${{ inputs.branding_ref }}
           path: .clinic
+          persist-credentials: false
       - name: Apply clinic branding
         if: inputs.branding_repo != ''
+        env:
+          BRANDING_REPO: ${{ inputs.branding_repo }}
         run: |
-          test -f .clinic/clinic.config.json || { echo "clinic.config.json missing in ${{ inputs.branding_repo }}" >&2; exit 1; }
+          test -f .clinic/clinic.config.json || { echo "clinic.config.json missing in $BRANDING_REPO" >&2; exit 1; }
           node -e "JSON.parse(require('fs').readFileSync('.clinic/clinic.config.json','utf8'))" || { echo "clinic.config.json is not valid JSON" >&2; exit 1; }
+          if [ -d .clinic/public ] && [ -n "$(find .clinic/public -type l)" ]; then
+            echo "Symlinks are not allowed in $BRANDING_REPO public/:" >&2; find .clinic/public -type l >&2; exit 1
+          fi
           if [ -d .clinic/public ]; then cp -R .clinic/public/. public/; fi
           echo "CLINIC_CONFIG_PATH=$PWD/.clinic/clinic.config.json" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
