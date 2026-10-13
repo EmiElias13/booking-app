@@ -153,7 +153,26 @@ begin
   end if;
 end $$;
 
--- Guard rails for anonymous inserts (NOT VALID: enforced for new rows, existing rows untouched).
+-- Pre-check (QA finding): the old schema had no length limits. A NOT VALID check still fires on
+-- every later UPDATE of an old row, so staff could no longer approve/decline a booking whose notes
+-- are too long. Abort here with the offending ids instead; shorten/export those rows, then re-run.
+do $$
+declare ids text;
+begin
+  select string_agg(id::text, ', ' order by id::text) into ids
+  from public.appointments
+  where length(notes) > 2000 or length(staff_note) > 2000
+     or length(client_name) not between 1 and 120 or length(email) not between 3 and 254
+     or length(phone) > 40 or length(service) not between 1 and 64
+     or slot_time !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+  if ids is not null then
+    raise exception 'Existing appointments break the new field limits (notes/staff_note <= 2000 chars, etc.): %', ids
+      using hint = 'Shorten or export those rows first (e.g. move long notes elsewhere), then re-run. Nothing was changed.';
+  end if;
+end $$;
+
+-- Guard rails for anonymous inserts (NOT VALID skips the full-table scan; the pre-check above already
+-- guarantees existing rows comply, so later updates of old rows keep working).
 alter table public.appointments drop constraint if exists appointments_slot_time_format;
 alter table public.appointments drop constraint if exists appointments_field_lengths;
 alter table public.appointments
