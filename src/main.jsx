@@ -8,10 +8,12 @@ import { AuthProvider } from './store/auth.jsx'
 import { AppointmentsProvider } from './store/appointments.jsx'
 import './index.css'
 
-const ACCENT_SOFT_HEX = '#f3eaf8'
-const ACCENT_DEEP_HEX = '#4e2870'
-
 function applyClinicChrome() {
+  const root = document.documentElement.style
+  root.setProperty('--accent', config.themeColor)
+  root.setProperty('--accent-soft', config.accentSoft)
+  root.setProperty('--accent-deep', config.accentDeep)
+
   document.title = t(strings.meta.title, { name: config.name })
 
   const theme = document.querySelector('meta[name="theme-color"]')
@@ -27,7 +29,7 @@ function applyClinicChrome() {
   }
 
   const initial = (config.name.trim().charAt(0) || '?').toUpperCase()
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="${ACCENT_SOFT_HEX}"/><text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="34" font-weight="600" fill="${ACCENT_DEEP_HEX}">${initial}</text></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="${config.accentSoft}"/><text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="34" font-weight="600" fill="${config.accentDeep}">${initial}</text></svg>`
   icon.type = 'image/svg+xml'
   icon.href = `data:image/svg+xml,${encodeURIComponent(svg)}`
 }

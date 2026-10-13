@@ -1,4 +1,6 @@
-export const strings = {
+import { config } from '../config/clinic.config.js'
+
+const baseStrings = {
   meta: { title: '{name} · Agenda tu cita', logoAlt: '{name}' },
   nav: { approvals: 'Solicitudes', signOut: 'Cerrar sesión' },
   status: { pending: 'Pendiente', approved: 'Aprobada', declined: 'Rechazada' },
@@ -54,6 +56,19 @@ export const strings = {
     banner: 'Estás viendo una demo. Los datos no se guardan.',
   },
 }
+
+// Clinic overrides from clinic.config.json `strings`; unknown keys kept, arrays replaced.
+export function deepMerge(base, over) {
+  if (!over || typeof over !== 'object') return base
+  const out = { ...base }
+  for (const [k, v] of Object.entries(over)) {
+    out[k] = v && typeof v === 'object' && !Array.isArray(v) && typeof base[k] === 'object'
+      ? deepMerge(base[k], v) : v
+  }
+  return out
+}
+
+export const strings = deepMerge(baseStrings, config.strings)
 
 export function t(template, vars = {}) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => (vars[key] == null ? '' : String(vars[key])))
