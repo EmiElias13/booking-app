@@ -257,16 +257,16 @@ export default function Approvals() {
                 </div>
               ) : (
                 <div className="approval-actions">
-                  {appointment.physioNote && (
+                  {appointment.staffNote && (
                     <p className="muted">
-                      {strings.approvals.yourNote} {appointment.physioNote}
+                      {strings.approvals.yourNote} {appointment.staffNote}
                     </p>
                   )}
                   <button
                     type="button"
                     className="btn btn-ghost"
                     disabled={Boolean(busyIds[appointment.id])}
-                    onClick={() => handleDecision(appointment, 'pending', appointment.physioNote)}
+                    onClick={() => handleDecision(appointment, 'pending', appointment.staffNote)}
                   >
                     {strings.approvals.backToPending}
                   </button>

@@ -2,7 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Approvals from './pages/Approvals.jsx'
 import Login from './pages/Login.jsx'
-import RequirePhysio from './middleware/RequirePhysio.jsx'
+import RequireStaff from './middleware/RequireStaff.jsx'
 import Monogram from './components/Monogram.jsx'
 import { config } from './config/clinic.config.js'
 import { strings } from './i18n/strings.js'
@@ -11,7 +11,7 @@ import { useAuth } from './store/auth.jsx'
 
 export default function App() {
   const { appointments } = useAppointments()
-  const { isPhysio, signOut } = useAuth()
+  const { isStaff, signOut } = useAuth()
   const pendingCount = appointments.filter((appointment) => appointment.status === 'pending').length
   const logoSrc = config.logo
     ? `${import.meta.env.BASE_URL}${config.logo.replace(/^\//, '')}`
@@ -37,7 +37,7 @@ export default function App() {
           </NavLink>
         </div>
         <nav className="nav">
-          {isPhysio ? (
+          {isStaff ? (
             <>
               <NavLink to="/approvals">
                 {strings.nav.approvals}
@@ -68,9 +68,9 @@ export default function App() {
           <Route
             path="/approvals"
             element={
-              <RequirePhysio>
+              <RequireStaff>
                 <Approvals />
-              </RequirePhysio>
+              </RequireStaff>
             }
           />
         </Routes>

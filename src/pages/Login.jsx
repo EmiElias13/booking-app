@@ -5,7 +5,7 @@ import { strings } from '../i18n/strings.js'
 import { useAuth } from '../store/auth.jsx'
 
 export default function Login() {
-  const { isPhysio, signIn } = useAuth()
+  const { isStaff, signIn } = useAuth()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,7 +14,7 @@ export default function Login() {
 
   const redirectTo = location.state?.from || '/approvals'
 
-  if (isPhysio) {
+  if (isStaff) {
     return <Navigate to={redirectTo} replace />
   }
 

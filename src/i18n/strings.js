@@ -29,6 +29,7 @@ export const strings = {
     reach: 'No pudimos conectar con el servicio de citas. Inténtalo en un momento.',
     config: 'Falta configurar la app. Agrega VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY y VITE_CLINIC_ID a .env.local.',
     notFound: 'No encontramos esa cita.',
+    noClinicAccess: 'Tu cuenta no tiene acceso a esta clínica. Pide a quien administra la clínica que te agregue.',
   },
   login: {
     title: 'Acceso del equipo',

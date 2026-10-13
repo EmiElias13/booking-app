@@ -34,7 +34,7 @@ function seedAppointments() {
     date: localISODate(row.day),
     time: row.time,
     status: row.status,
-    physioNote: row.staffNote ?? '',
+    staffNote: row.staffNote ?? '',
     requestedAt: new Date().toISOString(),
   }))
 }
@@ -54,7 +54,7 @@ export async function signIn(email) {
     access_token: 'demo-token',
     refresh_token: 'demo-refresh',
     expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { email },
+    user: { id: 'demo-user', email },
   }
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
   return session
@@ -64,8 +64,14 @@ export async function signOut() {
   sessionStorage.removeItem(SESSION_KEY)
 }
 
-export async function listSlots() {
-  return [...appointments]
+export async function listTakenSlots(from, to) {
+  return appointments
+    .filter((a) => a.status !== 'declined' && a.date >= from && a.date <= to)
+    .map((a) => ({ date: a.date, time: a.time }))
+}
+
+export async function getStaffMembership() {
+  return 'admin'
 }
 
 export async function listAppointments() {
@@ -96,14 +102,14 @@ export async function createAppointment(request) {
     date: request.date,
     time: request.time,
     status: 'pending',
-    physioNote: '',
+    staffNote: '',
     requestedAt: new Date().toISOString(),
   }
   appointments.push(appointment)
   return appointment
 }
 
-export async function updateAppointment(id, { status, physioNote = '' }) {
+export async function updateAppointment(id, { status, staffNote = '' }) {
   const index = appointments.findIndex((appointment) => appointment.id === id)
   if (index < 0) {
     const error = new Error(strings.errors.notFound)
@@ -111,6 +117,6 @@ export async function updateAppointment(id, { status, physioNote = '' }) {
     error.fieldErrors = { id: strings.errors.notFound }
     throw error
   }
-  appointments[index] = { ...appointments[index], status, physioNote }
+  appointments[index] = { ...appointments[index], status, staffNote }
   return appointments[index]
 }

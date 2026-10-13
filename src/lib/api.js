@@ -15,6 +15,15 @@ export function getSession() {
   return live.getSession()
 }
 
+export function setSession(session) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    if (session) sessionStorage.setItem('clinic_demo_session', JSON.stringify(session))
+    else sessionStorage.removeItem('clinic_demo_session')
+    return
+  }
+  live.setSession(session)
+}
+
 export async function signIn(email, password) {
   if (import.meta.env.VITE_DEMO === 'true') {
     return (await import('../demo/api.js')).signIn(email, password)
@@ -29,11 +38,18 @@ export async function signOut() {
   return live.signOut()
 }
 
-export async function listSlots() {
+export async function listTakenSlots(from, to) {
   if (import.meta.env.VITE_DEMO === 'true') {
-    return (await import('../demo/api.js')).listSlots()
+    return (await import('../demo/api.js')).listTakenSlots(from, to)
   }
-  return live.listSlots()
+  return live.listTakenSlots(from, to)
+}
+
+export async function getStaffMembership(userId) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).getStaffMembership(userId)
+  }
+  return live.getStaffMembership(userId)
 }
 
 export async function listAppointments() {
