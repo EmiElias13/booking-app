@@ -6,7 +6,9 @@ import react from '@vitejs/plugin-react'
 // clinic.config.json. Unset = template defaults ("Tu Clínica").
 // This JSON is baked into the public bundle: never put secrets in it.
 const configPath = process.env.CLINIC_CONFIG_PATH
-const clinic = configPath ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {}
+// clinicId is dropped here too: it only ever comes from VITE_CLINIC_ID.
+// eslint-disable-next-line no-unused-vars
+const { clinicId: _ignored, ...clinic } = configPath ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
 
 // https://vite.dev/config/
@@ -17,13 +19,14 @@ export default defineConfig({
     react(),
     {
       name: 'clinic-html',
-      transformIndexHtml(html) {
+      // order: 'pre' so Vite's own HTML pass prefixes the injected favicon href with `base`.
+      transformIndexHtml: { order: 'pre', handler(html) {
         if (!clinic.name) return html
         let out = html.replace(/<title>.*<\/title>/, `<title>${esc(clinic.name)} · Agenda tu cita</title>`)
         if (clinic.themeColor) out = out.replace(/(name="theme-color" content=")[^"]*/, `$1${esc(clinic.themeColor)}`)
         if (clinic.logo) out = out.replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="/${esc(clinic.logo.replace(/^\//, ''))}" />`)
         return out
-      },
+      } },
     },
   ],
 })
