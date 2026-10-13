@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { isSupabaseConfigured } from '../lib/supabase.js'
+import { isAppConfigured } from '../lib/api.js'
+import { strings } from '../i18n/strings.js'
 import { useAuth } from '../store/auth.jsx'
 
 export default function Login() {
-  const { isPhysio, signIn } = useAuth()
+  const { isStaff, signIn } = useAuth()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,7 +14,7 @@ export default function Login() {
 
   const redirectTo = location.state?.from || '/approvals'
 
-  if (isPhysio) {
+  if (isStaff) {
     return <Navigate to={redirectTo} replace />
   }
 
@@ -24,7 +25,7 @@ export default function Login() {
     try {
       await signIn(email.trim(), password)
     } catch (next) {
-      setError(next.message || 'Could not sign in')
+      setError(next.message || strings.errors.signIn)
     } finally {
       setSubmitting(false)
     }
@@ -33,31 +34,32 @@ export default function Login() {
   return (
     <div className="page">
       <section className="hero enter">
-        <h1>Physio sign in</h1>
-        <p>Approvals are limited to the clinic physio. Guests can request a slot without an account.</p>
+        <h1>{strings.login.title}</h1>
+        <p>{strings.login.intro}</p>
+        {import.meta.env.VITE_DEMO === 'true' && <p className="muted">{strings.demo.loginHint}</p>}
       </section>
 
-      {!isSupabaseConfigured && (
+      {!isAppConfigured && (
         <div className="banner banner-error" role="alert">
-          Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.
+          {strings.errors.config}
         </div>
       )}
 
       <form className="card booking-form enter enter-delay-1" onSubmit={handleSubmit}>
         <label className={`field${error ? ' error-shake' : ''}`}>
-          <span>Email</span>
+          <span>{strings.login.email}</span>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="physio@movewell.clinic"
+            placeholder={strings.login.emailPh}
             autoComplete="username"
             required
           />
         </label>
 
         <label className={`field${error ? ' error-shake' : ''}`}>
-          <span>Password</span>
+          <span>{strings.login.password}</span>
           <input
             type="password"
             value={password}
@@ -72,11 +74,11 @@ export default function Login() {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={submitting || !isSupabaseConfigured}
+          disabled={submitting || !isAppConfigured}
           aria-busy={submitting ? true : undefined}
         >
           {submitting && <span className="btn-spinner" aria-hidden="true" />}
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? strings.login.submitting : strings.login.submit}
         </button>
       </form>
     </div>
