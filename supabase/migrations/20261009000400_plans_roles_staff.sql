@@ -1,6 +1,6 @@
 -- PR 2 / 4: plans and staff limits, role-based access, staff assignment on appointments.
--- Roles: admin = everything incl. managing staff; therapist = own + unassigned appointments;
--- front_desk = whole clinic, can approve/decline and read notes. Nobody deletes appointments or clinics.
+-- Roles: all roles see and approve/decline every appointment in their own clinic;
+-- only admin manages staff. Nobody deletes appointments or clinics.
 -- Plan/limit changes are service-role only. On downgrade, existing staff stay; only new staff are blocked.
 alter table public.clinics
   add column plan text not null default 'basico' check (plan in ('basico','clinica')),
@@ -50,16 +50,8 @@ alter table public.appointments add column staff_id uuid,
   add constraint appointments_staff_fk foreign key (staff_id, clinic_id)
     references public.staff (user_id, clinic_id) on delete set null (staff_id);
 
--- Appointments: admin + front_desk see/decide the whole clinic; therapist only own + unassigned.
-drop policy "Staff read their clinic's appointments" on public.appointments;
-drop policy "Staff decide their clinic's appointments" on public.appointments;
-create policy "Staff read appointments by role" on public.appointments for select to authenticated
-  using (public.has_role(clinic_id, array['admin','front_desk'])
-         or (public.has_role(clinic_id, array['therapist']) and (staff_id is null or staff_id = (select auth.uid()))));
-create policy "Staff decide appointments by role" on public.appointments for update to authenticated
-  using (public.has_role(clinic_id, array['admin','front_desk'])
-         or (public.has_role(clinic_id, array['therapist']) and (staff_id is null or staff_id = (select auth.uid()))))
-  with check (public.is_staff_of(clinic_id));
+-- Appointments: every role (admin, therapist, front_desk) reads and decides all of its own clinic's
+-- appointments. The 0300 policies ("Staff read/decide their clinic's appointments", is_staff_of) stay as-is.
 
 -- Staff management: admin of that clinic only.
 grant insert, delete on table public.staff to authenticated;
