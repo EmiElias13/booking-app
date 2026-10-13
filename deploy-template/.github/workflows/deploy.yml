@@ -13,6 +13,8 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]   # branding changes redeploy
   workflow_dispatch:
   repository_dispatch:
     types: [app-release]
@@ -28,11 +30,13 @@ concurrency:
 
 jobs:
   deploy:
-    uses: EmiElias13/booking-app/.github/workflows/build-clinic.yml@main
+    uses: EmiEliasDev/booking-app/.github/workflows/build-clinic.yml@template/booking-app
     with:
       clinic_id: ${{ vars.CLINIC_ID }}
-      base_path: /
-      app_ref: main
+      base_path: /<repo-name>/          # "/" only with a custom domain
+      app_ref: template/booking-app     # must match the @ref above; switch both to main later
+      branding_repo: ${{ github.repository }}   # this repo: clinic.config.json + public/
+      branding_ref: ${{ github.sha }}
     secrets:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
