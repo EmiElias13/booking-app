@@ -13,7 +13,7 @@ const emptyForm = {
 }
 
 export default function Home() {
-  const { appointments, apiError, requestSlot } = useAppointments()
+  const { takenSlots: takenByDate, myRequests: sessionRequests, apiError, requestSlot } = useAppointments()
   const [form, setForm] = useState(emptyForm)
   const [date, setDate] = useState(todayISO())
   const [time, setTime] = useState('')
@@ -21,21 +21,15 @@ export default function Home() {
   const [confirmation, setConfirmation] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const takenSlots = useMemo(() => {
-    return new Set(
-      appointments
-        .filter((appointment) => appointment.date === date && appointment.status !== 'declined')
-        .map((appointment) => appointment.time),
-    )
-  }, [appointments, date])
+  const takenSlots = useMemo(() => takenByDate.get(date) ?? new Set(), [takenByDate, date])
 
   const myRequests = useMemo(() => {
     const email = form.email.trim().toLowerCase()
     if (!email) return []
-    return appointments
+    return sessionRequests
       .filter((appointment) => appointment.email?.toLowerCase() === email)
       .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
-  }, [appointments, form.email])
+  }, [sessionRequests, form.email])
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -242,9 +236,9 @@ export default function Home() {
                     {formatDate(appointment.date)} · {appointment.time}
                   </strong>
                   <span className="muted">{serviceLabel(appointment.service)}</span>
-                  {appointment.physioNote && (
+                  {appointment.staffNote && (
                     <span className="muted">
-                      {strings.home.clinicNote} {appointment.physioNote}
+                      {strings.home.clinicNote} {appointment.staffNote}
                     </span>
                   )}
                 </div>
