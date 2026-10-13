@@ -2,18 +2,23 @@
 -- so the previously deployed single-clinic app works again. One transaction; any error = no change.
 --
 -- DATA LOSS WARNINGS (read before running):
---   * Drops public.clinics and public.staff: clinic rows, plans/limits and every staff membership are lost.
+--   * Drops public.clinics and public.staff, but first copies every clinic (including clinics with
+--     no bookings) and staff membership into schema multiclinic_backup (not exposed to the API;
+--     no anon/authenticated access). Drop that schema by hand once you no longer need it.
 --   * Drops appointments.clinic_id and appointments.staff_id: which clinic/therapist a booking belonged to is lost.
 --   * Appointments themselves are KEPT (staff_note is renamed back to physio_note, contents intact).
 --   * Refuses to run if appointments belong to more than one clinic (merging calendars would mix patients
 --     of different clinics and could break the one-booking-per-slot index). Delete/export the other
 --     clinics' rows deliberately first if you really mean it.
+--   * Clinics with no bookings never block the rollback; they are kept in multiclinic_backup.clinics.
 --   * Refuses to run if two active bookings share a date+time (only possible with more than one clinic).
 --   * Auth users are untouched. Re-deploy the OLD client right after this commits.
 -- Take a backup first: supabase db dump --data-only > backup.sql
 -- Safe to re-run: every step is guarded.
 \set ON_ERROR_STOP on
 begin;
+-- Fail fast instead of queueing behind (and blocking) live traffic; just re-run if it times out.
+set local lock_timeout = '5s';
 
 do $$
 declare n int;
@@ -26,6 +31,25 @@ begin
     end if;
   end if;
 end $$;
+
+-- Keep clinics (also those with no bookings) and staff memberships instead of losing them.
+create schema if not exists multiclinic_backup;
+revoke all on schema multiclinic_backup from public, anon, authenticated;
+do $$
+begin
+  if to_regclass('public.clinics') is not null then
+    execute 'create table if not exists multiclinic_backup.clinics as table public.clinics with no data';
+    execute 'insert into multiclinic_backup.clinics select * from public.clinics c
+             where not exists (select 1 from multiclinic_backup.clinics b where b.id = c.id)';
+  end if;
+  if to_regclass('public.staff') is not null then
+    execute 'create table if not exists multiclinic_backup.staff as table public.staff with no data';
+    execute 'insert into multiclinic_backup.staff select * from public.staff s
+             where not exists (select 1 from multiclinic_backup.staff b
+                               where b.user_id = s.user_id and b.clinic_id = s.clinic_id)';
+  end if;
+end $$;
+revoke all on all tables in schema multiclinic_backup from public, anon, authenticated;
 
 -- 0400: plans, roles, staff_id
 drop policy if exists "Admin adds staff" on public.staff;
@@ -91,10 +115,14 @@ create policy "Physio can update appointments"
   on public.appointments for update to authenticated
   using (true) with check (true);
 
-create or replace view public.appointment_slots as
+-- Same 4 columns as baseline, but locked down: read-only for anon/authenticated (Supabase's default
+-- grants would otherwise let anon INSERT/UPDATE/DELETE through this owner-rights view, bypassing RLS).
+create or replace view public.appointment_slots
+  with (security_barrier = true, security_invoker = false) as
   select id, slot_date, slot_time, status
   from public.appointments;
 
+revoke all on public.appointment_slots from public, anon, authenticated;
 grant select on public.appointment_slots to anon, authenticated;
 
 commit;

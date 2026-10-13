@@ -2,11 +2,14 @@
 -- One transaction: any error rolls everything back and the live DB is left untouched.
 -- Order: 0100 clinics+staff, 0200 clinic_id, backfill, 0300 RLS + get_taken_slots + renames, 0400 plans/roles/staff_id.
 -- Re-runnable: every step is guarded (if not exists / drop if exists / on conflict).
--- BREAKING for the currently deployed app (renamed physio_note, dropped appointment_slots view):
+-- BREAKING for the currently deployed app (renamed physio_note; appointment_slots is kept as a temporary
+-- read-only compatibility view, see 0300 below):
 -- deploy the new client with VITE_CLINIC_ID = this clinic's id right after this commits.
 -- Take a backup first: supabase db dump --data-only > backup.sql (and the schema).
 \set ON_ERROR_STOP on
 begin;
+-- Fail fast instead of queueing behind (and blocking) live traffic; just re-run if it times out.
+set local lock_timeout = '5s';
 
 -- ================= Parameters (EDIT BEFORE RUNNING) =================
 -- TODO: replace the three values below. Run with: psql "$DB_URL" -v ON_ERROR_STOP=1 -f multiclinic_live.sql
@@ -192,8 +195,21 @@ create unique index appointments_active_slot
   on public.appointments (clinic_id, slot_date, slot_time)
   where status <> 'declined';
 
--- The old view exposed every appointment's id + status to anon, across all clinics.
-drop view if exists public.appointment_slots;
+-- TEMPORARY compatibility view for the currently deployed (old) client, which still reads
+-- /appointment_slots. Locked down (QA finding: Supabase's default grants gave anon INSERT/UPDATE/DELETE
+-- through this auto-updatable, owner-rights view, bypassing RLS):
+--   * same 4 non-PII columns as before (id, slot_date, slot_time, status), read-only for anon/authenticated;
+--   * security_barrier; owner rights are needed because anon has no SELECT on appointments.
+-- Live has a single clinic, so nothing crosses clinics. Note the old client's booking INSERT/UPDATE
+-- still fails after this script (physio_note renamed, clinic_id required): deploy the new client promptly.
+-- DROP IT once the new client (get_taken_slots) is live and verified:
+--   drop view if exists public.appointment_slots;
+create or replace view public.appointment_slots
+  with (security_barrier = true, security_invoker = false) as
+  select id, slot_date, slot_time, status
+  from public.appointments;
+revoke all on public.appointment_slots from public, anon, authenticated;
+grant select on public.appointment_slots to anon, authenticated;
 
 -- Privileges: anon may only insert the patient-supplied columns; staff may only change the decision.
 revoke all on table public.appointments from anon, authenticated;
