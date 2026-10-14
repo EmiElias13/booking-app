@@ -10,6 +10,8 @@ function addDaysISO(iso, days) {
   return d.toISOString().slice(0, 10)
 }
 
+const contactValues = Object.values(config.contact ?? {}).filter(Boolean).map(String)
+
 const emptyForm = {
   clientName: '',
   email: '',
@@ -220,10 +222,16 @@ export default function Home() {
           {jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
           {!firstOpenDay && (
             <div className="muted">
-              <p>{strings.home.noSlots}</p>
-              {Object.values(config.contact ?? {}).filter(Boolean).map((value) => (
-                <p key={String(value)}>{String(value)}</p>
-              ))}
+              {contactValues.length ? (
+                <>
+                  <p>{strings.home.noSlots}</p>
+                  {contactValues.map((value) => (
+                    <p key={value}>{value}</p>
+                  ))}
+                </>
+              ) : (
+                <p>{strings.home.noSlotsNoContact}</p>
+              )}
             </div>
           )}
           <div className="slot-grid" key={date}>

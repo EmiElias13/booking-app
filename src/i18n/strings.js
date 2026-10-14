@@ -18,6 +18,7 @@ const baseStrings = {
     success: '{date} a las {time} · {service}. Te escribiremos a {email} cuando la clínica confirme tu cita.',
     todayFull: 'Hoy ya no hay horarios. Te mostramos el siguiente día disponible.',
     noSlots: 'No hay horarios disponibles en los próximos 14 días. Contáctanos para agendar:',
+    noSlotsNoContact: 'Intenta otra fecha o vuelve más tarde',
     myRequests: 'Tus solicitudes', clinicNote: 'Mensaje de la clínica:',
   },
   errors: {
