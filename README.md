@@ -57,11 +57,11 @@ If this `booking-app` repo is private, Settings → Actions → General → Acce
 
 ## Supabase schema
 
-Coming in a later PR.
+Migrations live in `supabase/migrations` (apply in order); RLS/isolation tests are in `supabase/tests`.
 
 ## Clinic branding from the clinic deploy repo
 
-Each clinic deploy repo (e.g. `EmiEliasDev/rehabireb-web`) can hold:
+Each clinic deploy repo (e.g. `<owner>/<clinic>-web`) can hold:
 
 ```
 clinic.config.json   # branding/config overrides (optional keys below)
@@ -80,4 +80,4 @@ Keys: `name`, `shortName`, `logo` (path in `public/`), `logoAlt`, `locale`, `the
 
 **The config is public in the bundle. Never put secrets (service_role keys etc.) in it.**
 
-Local test: `CLINIC_CONFIG_PATH=../rehabireb-web/clinic.config.json VITE_BASE_PATH=/rehabireb-web/ npm run build`
+Local test: `CLINIC_CONFIG_PATH=../<clinic>-web/clinic.config.json VITE_BASE_PATH=/<clinic>-web/ npm run build`
