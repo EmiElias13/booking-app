@@ -1,28 +1,30 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   createAppointment,
+  getClinicToday,
   isAppConfigured,
   listAppointments,
   listTakenSlots,
   updateAppointment,
 } from '../lib/api.js'
 import { strings } from '../i18n/strings.js'
+import { todayISO } from '../data/clinic.js'
 import { useAuth } from './auth.jsx'
 
 const AppointmentsContext = createContext(null)
 
-function isoDate(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+function takenRange(today) {
+  const to = new Date(`${today}T00:00:00Z`)
+  to.setUTCDate(to.getUTCDate() + 90)
+  return [today, to.toISOString().slice(0, 10)]
 }
 
-function takenRange() {
-  const from = new Date()
-  const to = new Date()
-  to.setDate(to.getDate() + 90)
-  return [isoDate(from), isoDate(to)]
+// Clinic's date from the server, fetched once per page load; falls back to the
+// clinic-timezone date computed locally (also used while loading / in demo).
+let clinicTodayPromise = null
+function loadClinicToday() {
+  clinicTodayPromise ??= getClinicToday().catch(() => todayISO())
+  return clinicTodayPromise
 }
 
 function toTakenMap(slots) {
@@ -40,6 +42,7 @@ export function AppointmentsProvider({ children }) {
   const [guestTaken, setGuestTaken] = useState([])
   const [myRequests, setMyRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [clinicToday, setClinicToday] = useState(() => todayISO())
   const [apiError, setApiError] = useState(null)
 
   const refresh = useCallback(async () => {
@@ -53,7 +56,9 @@ export function AppointmentsProvider({ children }) {
       if (isStaff) {
         setAppointments(await listAppointments())
       } else {
-        setGuestTaken(await listTakenSlots(...takenRange()))
+        const today = await loadClinicToday()
+        setClinicToday(today)
+        setGuestTaken(await listTakenSlots(...takenRange(today)))
       }
       setApiError(null)
     } catch (error) {
@@ -100,8 +105,8 @@ export function AppointmentsProvider({ children }) {
   )
 
   const value = useMemo(
-    () => ({ appointments, takenSlots, myRequests, loading, apiError, refresh, requestSlot, decide }),
-    [appointments, takenSlots, myRequests, loading, apiError, refresh, requestSlot, decide],
+    () => ({ appointments, takenSlots, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide }),
+    [appointments, takenSlots, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide],
   )
 
   return <AppointmentsContext.Provider value={value}>{children}</AppointmentsContext.Provider>

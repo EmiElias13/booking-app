@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { SERVICES, TIME_SLOTS, formatDate, serviceLabel, todayISO } from '../data/clinic.js'
+import { useEffect, useMemo, useState } from 'react'
+import { SERVICES, TIME_SLOTS, clinicTimeHHMM, formatDate, serviceLabel } from '../data/clinic.js'
 import { config } from '../config/clinic.config.js'
 import { strings, t } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
@@ -13,15 +13,31 @@ const emptyForm = {
 }
 
 export default function Home() {
-  const { takenSlots: takenByDate, myRequests: sessionRequests, apiError, requestSlot } = useAppointments()
+  const { takenSlots: takenByDate, myRequests: sessionRequests, apiError, requestSlot, clinicToday } = useAppointments()
   const [form, setForm] = useState(emptyForm)
-  const [date, setDate] = useState(todayISO())
+  const [date, setDate] = useState(clinicToday)
   const [time, setTime] = useState('')
   const [errors, setErrors] = useState({})
   const [confirmation, setConfirmation] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Once the server's clinic date arrives, never leave a past day selected.
+  useEffect(() => {
+    if (date < clinicToday) setDate(clinicToday)
+  }, [clinicToday, date])
+
   const takenSlots = useMemo(() => takenByDate.get(date) ?? new Set(), [takenByDate, date])
+
+  // Today, slots that have already started can't be booked (the server rejects them too).
+  const [nowHHMM, setNowHHMM] = useState(clinicTimeHHMM)
+  useEffect(() => {
+    const id = setInterval(() => setNowHHMM(clinicTimeHHMM()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  const isPast = (slot) => date === clinicToday && slot <= nowHHMM
+  useEffect(() => {
+    if (time && date === clinicToday && time <= nowHHMM) setTime('')
+  }, [time, date, clinicToday, nowHHMM])
 
   const myRequests = useMemo(() => {
     const email = form.email.trim().toLowerCase()
@@ -161,7 +177,7 @@ export default function Home() {
             <span>{strings.home.date}</span>
             <input
               type="date"
-              min={todayISO()}
+              min={clinicToday}
               value={date}
               onChange={(event) => {
                 setDate(event.target.value)
@@ -180,6 +196,7 @@ export default function Home() {
           <div className="slot-grid" key={date}>
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
+              if (isPast(slot)) return null
               return (
                 <button
                   key={slot}
