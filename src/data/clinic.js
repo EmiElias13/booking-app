@@ -3,8 +3,15 @@ import { config } from '../config/clinic.config.js'
 export const SERVICES = config.services
 export const TIME_SLOTS = config.timeSlots
 
-export function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+// Today's date (YYYY-MM-DD) in the clinic's timezone. Fallback only: the live
+// app prefers the server's clinic_today (see store/appointments.jsx).
+export function todayISO(timeZone = config.timezone, now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(now)
+}
+
+// Current time (HH:MM, 24h) in the clinic's timezone.
+export function clinicTimeHHMM(timeZone = config.timezone, now = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now)
 }
 
 export function formatDate(iso) {

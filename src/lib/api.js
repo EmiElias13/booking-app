@@ -38,6 +38,13 @@ export async function signOut() {
   return live.signOut()
 }
 
+export async function getClinicToday() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../data/clinic.js')).todayISO()
+  }
+  return live.getClinicToday()
+}
+
 export async function listTakenSlots(from, to) {
   if (import.meta.env.VITE_DEMO === 'true') {
     return (await import('../demo/api.js')).listTakenSlots(from, to)
