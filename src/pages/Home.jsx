@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SERVICES, TIME_SLOTS, clinicTimeHHMM, formatDate, serviceLabel } from '../data/clinic.js'
 import { config } from '../config/clinic.config.js'
 import { strings, t } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
+
+function addDaysISO(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 
 const emptyForm = {
   clientName: '',
@@ -21,12 +27,7 @@ export default function Home() {
   const [confirmation, setConfirmation] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Once the server's clinic date arrives, never leave a past day selected.
-  useEffect(() => {
-    if (date < clinicToday) setDate(clinicToday)
-  }, [clinicToday, date])
-
-  const takenSlots = useMemo(() => takenByDate.get(date) ?? new Set(), [takenByDate, date])
+  const pickedByHand = useRef(false)
 
   // Today, slots that have already started can't be booked (the server rejects them too).
   const [nowHHMM, setNowHHMM] = useState(clinicTimeHHMM)
@@ -34,6 +35,28 @@ export default function Home() {
     const id = setInterval(() => setNowHHMM(clinicTimeHHMM()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  // First day within 14 days (from the clinic's today) with an open slot, or null.
+  const firstOpenDay = useMemo(() => {
+    for (let i = 0; i < 14; i++) {
+      const day = addDaysISO(clinicToday, i)
+      const taken = takenByDate.get(day) ?? new Set()
+      if (TIME_SLOTS.some((slot) => !taken.has(slot) && !(i === 0 && slot <= nowHHMM))) return day
+    }
+    return null
+  }, [clinicToday, takenByDate, nowHHMM])
+
+  // Auto-pick on load and when today runs out; never override a hand-picked date.
+  useEffect(() => {
+    if (pickedByHand.current) {
+      if (date < clinicToday) setDate(clinicToday)
+    } else {
+      setDate(firstOpenDay ?? clinicToday)
+    }
+  }, [firstOpenDay, clinicToday, date])
+  const jumpedPastToday = !pickedByHand.current && firstOpenDay && firstOpenDay !== clinicToday && date === firstOpenDay
+
+  const takenSlots = useMemo(() => takenByDate.get(date) ?? new Set(), [takenByDate, date])
   const isPast = (slot) => date === clinicToday && slot <= nowHHMM
   useEffect(() => {
     if (time && date === clinicToday && time <= nowHHMM) setTime('')
@@ -180,6 +203,7 @@ export default function Home() {
               min={clinicToday}
               value={date}
               onChange={(event) => {
+                pickedByHand.current = true
                 setDate(event.target.value)
                 setTime('')
               }}
@@ -193,6 +217,15 @@ export default function Home() {
           <legend>
             {strings.home.slots} {date && <em>· {formatDate(date)}</em>}
           </legend>
+          {jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
+          {!firstOpenDay && (
+            <div className="muted">
+              <p>{strings.home.noSlots}</p>
+              {Object.values(config.contact ?? {}).filter(Boolean).map((value) => (
+                <p key={String(value)}>{String(value)}</p>
+              ))}
+            </div>
+          )}
           <div className="slot-grid" key={date}>
             {TIME_SLOTS.map((slot) => {
               const taken = takenSlots.has(slot)
