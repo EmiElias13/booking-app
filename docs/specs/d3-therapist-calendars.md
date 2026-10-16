@@ -35,6 +35,10 @@ alter table public.staff
   add column active boolean not null default true,
   add column sort_order smallint not null default 0;       -- list order shown to patients
 grant update (role, display_name, active, sort_order) on public.staff to authenticated;   -- admin-only via existing policy
+-- Roles are NOT changed from the app (Emiliano, 2026-10-16): the 0750 trigger staff_edit_guard refuses any role
+-- change by API callers (anon/authenticated, incl. admins). Admins pick a role only when adding staff; changing one
+-- later is service role / SQL only. The `role` column grant stays so API updates that mention role don't hit a
+-- permission error; the trigger rejects only an actual change.
 
 -- staff limit (decision 14): enforce_staff_limit() counts active staff only; trigger fires on
 -- insert or update of (clinic_id, active), so reactivation at the limit fails with 23514.
@@ -98,7 +102,7 @@ Same as today plus `and a.staff_id = p_staff_id`. Kept for parity/staff use; the
 | appointments select | none | `staff_id = auth.uid()` | whole clinic* | whole clinic* |
 | appointments update (status, staff_note) | none | own only (approve/decline) | whole clinic* | whole clinic* |
 | staff select | none (use `list_therapists`) | own clinic (unchanged) | same | same |
-| staff insert/update/delete | none | none | none | admin (unchanged) |
+| staff insert/update/delete | none | none | none | admin (unchanged; role cannot be changed after insert, 0750) |
 | staff_hours / staff_time_off select | none | own clinic | own clinic | own clinic |
 | staff_hours / staff_time_off write | none | none | none | `has_role(clinic_id, '{admin}')` |
 \* Confirmed (decisions 5–6).
@@ -116,7 +120,7 @@ Files `20261016000700…` onward, one concern each:
 - **Data step (manual, service role):** set `display_name` for Rehabireb staff; seed `staff_hours` Mon–Sat (weekday 1–6) 08:00–20:00 for Francia, Paulina, Manganita and Mariano (`slot_minutes` stays 60); set `sort_order` Francia 1, Paulina 2, Manganita 3, Mariano 4 (all role `therapist`, active); assign every legacy `staff_id null` row to the first therapist by `sort_order` (Francia): `update appointments set staff_id = <francia> where clinic_id = <rehabireb> and staff_id is null;` Run a duplicate check first (two legacy rows can't share a slot today, so none expected).
 - **Deploy frontend** that uses `list_therapists` + `request_appointment` (manual re-run of the Rehabireb deploy repo).
 - **0800 breaking cutover** (only after the new bundle is live and QA'd; aborts if any `staff_id is null` row remains): narrow the taken check in `_slot_problem` to the same therapist; drop anon insert policy, `revoke insert on appointments from anon`; swap unique index (pre-check: abort if duplicates would exist, list ids); replace staff select/update policies (therapist own-only). Remove `/appointments` POST from the guest allowlist.
-- **0900 cleanup:** drop 3-arg `get_taken_slots`.
+- **0900 cleanup:** drop 3-arg (clinic-wide) `get_taken_slots`; frontend drops `listTakenSlots` and its guest allowlist entry. The clinic-wide index is already replaced in 0800; `timeSlots`/`TIME_SLOTS` were retired in PR 3.
 
 Live-safety: run 0700 in the SQL editor, verify, then 0800 in a quiet hour (after 20:00 PT, when bookable hours end). Index swap is a small table: `create unique index concurrently` new name first, then drop old, then rename (no write lock window). Each file is idempotent (`if not exists`, `drop policy if exists`).
 Rollback:

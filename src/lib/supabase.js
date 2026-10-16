@@ -14,7 +14,6 @@ export const isAppConfigured = Boolean(isSupabaseConfigured && UUID_RE.test(clin
 
 const ALLOWED = {
   guest: [
-    { method: 'POST', pathPrefix: '/rpc/get_taken_slots' },
     { method: 'POST', pathPrefix: '/rpc/clinic_today' },
     { method: 'POST', pathPrefix: '/rpc/list_therapists' },
     { method: 'POST', pathPrefix: '/rpc/get_available_slots' },
@@ -245,7 +244,7 @@ function firstRow(rows) {
   return fromRow(row)
 }
 
-// Guests: taken times only, one clinic, bounded range (the server clamps `from` to clinic-today).
+// Guests: the clinic's local date.
 export async function getClinicToday() {
   const today = await rest('guest', '/rpc/clinic_today', {
     method: 'POST',
@@ -253,14 +252,6 @@ export async function getClinicToday() {
   })
   if (typeof today !== 'string') throw new Error(strings.errors.reach)
   return today
-}
-
-export async function listTakenSlots(from, to) {
-  const rows = await rest('guest', '/rpc/get_taken_slots', {
-    method: 'POST',
-    body: JSON.stringify({ p_clinic_id: clinicId, p_from: from, p_to: to }),
-  })
-  return (rows ?? []).map((row) => ({ date: row.slot_date, time: row.slot_time }))
 }
 
 // Active therapists of this clinic: id + display name only.

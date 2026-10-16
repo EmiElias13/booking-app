@@ -82,12 +82,6 @@ export async function signOut() {
   sessionStorage.removeItem(SESSION_KEY)
 }
 
-export async function listTakenSlots(from, to) {
-  return appointments
-    .filter((a) => a.status !== 'declined' && a.date >= from && a.date <= to)
-    .map((a) => ({ date: a.date, time: a.time }))
-}
-
 export async function getStaffMembership() {
   return 'admin'
 }
