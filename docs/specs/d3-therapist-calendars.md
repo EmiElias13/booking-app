@@ -47,7 +47,8 @@ create table public.staff_hours (
   foreign key (staff_id, clinic_id) references public.staff (user_id, clinic_id) on delete cascade
 );
 create index on public.staff_hours (clinic_id, staff_id, weekday);
--- (optional) exclusion constraint against overlapping ranges per staff/weekday
+-- no overlapping ranges per clinic/staff/weekday (touching allowed), needs btree_gist (in `extensions`):
+-- exclude using gist (clinic_id with =, staff_id with =, weekday with =, int4range(epoch(start), epoch(end)) with &&)
 
 -- time off: inclusive date range, whole days only (decision 8)
 create table public.staff_time_off (
@@ -74,7 +75,7 @@ Checks, in order (each raises a distinct `errcode`/message the UI maps to a stri
 2. `p_slot_time` matches `HH:MM`; slot is in the future: `date > clinic_today` or (`= clinic_today` and `time > clinic_now::time`); date ≤ today + 92.
 3. Within hours and on the grid: exists `staff_hours` row with `weekday = extract(dow from p_slot_date)`, `start_time <= t`, `t + slot_minutes <= end_time`, and `(t - start_time)` a multiple of `slot_minutes`.
 4. Not in `staff_time_off` (`p_slot_date between start_date and end_date`).
-5. Free: `insert ... status 'pending', staff_note ''`; unique-violation → `slot_taken`. Field-length checks come from existing constraints.
+5. Free: until 0800 no non-declined booking anywhere in the clinic holds that date+time (any staff_id, incl. legacy NULL), because the unique index is still clinic-wide; 0800 narrows this to the same therapist. Then `insert ... status 'pending', staff_note ''`; unique-violation → `slot_taken`. Field-length checks come from existing constraints.
 Lock: rely on the unique index (no advisory lock needed).
 
 ### `get_available_slots(p_clinic_id, p_staff_id, p_from, p_to)` – security definer, anon + authenticated
@@ -110,7 +111,7 @@ Files `20261016000700…` onward, one concern each:
 - **0700 additive** (safe anytime, old app keeps working): staff columns, `clinics.slot_minutes`, `staff_hours`, `staff_time_off` + RLS, `list_therapists`, `request_appointment`, `get_available_slots`, 4-arg `get_taken_slots`. Old anon insert path untouched.
 - **Data step (manual, service role):** set `display_name` for Rehabireb staff; seed `staff_hours` Mon–Sat (weekday 1–6) 08:00–20:00 for Francia, Paulina, Manganita and Mariano (`slot_minutes` stays 60); set `sort_order` Francia 1, Paulina 2, Manganita 3, Mariano 4 (all role `therapist`, active); assign every legacy `staff_id null` row to the first therapist by `sort_order` (Francia): `update appointments set staff_id = <francia> where clinic_id = <rehabireb> and staff_id is null;` Run a duplicate check first (two legacy rows can't share a slot today, so none expected).
 - **Deploy frontend** that uses `list_therapists` + `request_appointment` (manual re-run of the Rehabireb deploy repo).
-- **0800 breaking cutover** (only after the new bundle is live and QA'd; aborts if any `staff_id is null` row remains): drop anon insert policy, `revoke insert on appointments from anon`; swap unique index (pre-check: abort if duplicates would exist, list ids); replace staff select/update policies (therapist own-only). Remove `/appointments` POST from the guest allowlist.
+- **0800 breaking cutover** (only after the new bundle is live and QA'd; aborts if any `staff_id is null` row remains): narrow the taken check in `_slot_problem` to the same therapist; drop anon insert policy, `revoke insert on appointments from anon`; swap unique index (pre-check: abort if duplicates would exist, list ids); replace staff select/update policies (therapist own-only). Remove `/appointments` POST from the guest allowlist.
 - **0900 cleanup:** drop 3-arg `get_taken_slots`.
 
 Live-safety: run 0700 in the SQL editor, verify, then 0800 in a quiet hour (after 20:00 PT, when bookable hours end). Index swap is a small table: `create unique index concurrently` new name first, then drop old, then rename (no write lock window). Each file is idempotent (`if not exists`, `drop policy if exists`).
@@ -132,6 +133,8 @@ Rollback:
 2. `list_therapists` returns only id + display_name, only active therapists (excl. admin, front_desk, inactive), ordered by sort_order, only that clinic.
 3. `request_appointment` OK for valid slot → row `pending`, `staff_id` set, `staff_note ''`.
 4. rejects: therapist of another clinic; inactive; admin or front_desk staff_id; unknown clinic.
+5a. until 0800: another therapist's or a legacy NULL-staff booking blocks the slot; declined doesn't.
+5b. overlapping `staff_hours` for the same staff + weekday rejected (23P01); touching ranges, other weekday, other staff allowed.
 5. rejects: outside hours; last slot ending after `end_time`; off-grid time (e.g. 08:30 with 60-min slots); wrong weekday (Sunday for seeded staff); split-shift gap.
 6. rejects: date inside time off (start, middle, end day).
 7. rejects: past date; today with time ≤ `clinic_now`; > 92 days; bad `HH:MM`.

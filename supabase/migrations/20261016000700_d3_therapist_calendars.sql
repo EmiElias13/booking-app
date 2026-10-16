@@ -26,6 +26,23 @@ create table if not exists public.staff_hours (
 );
 create index if not exists staff_hours_lookup_idx on public.staff_hours (clinic_id, staff_id, weekday);
 
+-- No overlapping ranges for the same therapist and weekday (touching is fine: 08-13 + 13-19).
+-- btree_gist is a supported Supabase extension; Supabase keeps extensions in the `extensions` schema.
+create schema if not exists extensions;
+create extension if not exists btree_gist with schema extensions;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'staff_hours_no_overlap') then
+    alter table public.staff_hours add constraint staff_hours_no_overlap
+      exclude using gist (
+        clinic_id with =,
+        staff_id  with =,
+        weekday   with =,
+        int4range((extract(epoch from start_time))::int, (extract(epoch from end_time))::int) with &&
+      );
+  end if;
+end $$;
+
 -- ---------- time off: whole days, inclusive ----------
 create table if not exists public.staff_time_off (
   id         uuid primary key default gen_random_uuid(),
@@ -60,7 +77,9 @@ create policy "Admin writes time off" on public.staff_time_off for all to authen
 
 -- ---------- shared slot rule (internal) ----------
 -- Returns NULL when the slot is bookable for that therapist, otherwise an error code.
--- Does NOT check whether the slot is already taken (the unique index / callers do).
+-- Includes the "already taken" check. Until 20261016000800 the unique index is still clinic-wide
+-- (clinic_id, slot_date, slot_time), so a slot counts as taken when ANY non-declined booking in the
+-- clinic holds it (any staff_id, including legacy NULL). 0800 narrows this to the same therapist.
 create or replace function public._slot_problem(p_clinic_id uuid, p_staff_id uuid, p_slot_date date, p_slot_time text)
 returns text
 language plpgsql stable security definer set search_path = ''
@@ -100,6 +119,12 @@ begin
              where o.clinic_id = p_clinic_id and o.staff_id = p_staff_id
                and p_slot_date between o.start_date and o.end_date) then
     return 'time_off';
+  end if;
+  -- TRANSITIONAL (0700): clinic-wide. 0800 changes this to `and a.staff_id = p_staff_id`.
+  if exists (select 1 from public.appointments a
+             where a.clinic_id = p_clinic_id and a.slot_date = p_slot_date and a.slot_time = p_slot_time
+               and a.status <> 'declined') then
+    return 'slot_taken';
   end if;
   return null;
 end $$;
@@ -188,10 +213,8 @@ as $$
   )
   select distinct cand.day, cand.hhmm
   from cand
+  -- _slot_problem also drops taken slots: clinic-wide until 0800, then per therapist.
   where public._slot_problem(p_clinic_id, p_staff_id, cand.day, cand.hhmm) is null
-    and not exists (select 1 from public.appointments a
-                    where a.clinic_id = p_clinic_id and a.slot_date = cand.day and a.slot_time = cand.hhmm
-                      and a.staff_id = p_staff_id and a.status <> 'declined')
   order by 1, 2;
 $$;
 revoke execute on function public.get_available_slots(uuid, uuid, date, date) from public, anon, authenticated;

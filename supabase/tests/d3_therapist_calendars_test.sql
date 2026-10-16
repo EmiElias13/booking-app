@@ -124,7 +124,7 @@ select is((select count(*)::int from public.get_available_slots('a0000000-0000-4
 select results_eq($$select min(slot_time) || '-' || max(slot_time) from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,(select mon from d3)+7)$$,
   array['08:00-19:00'], 'V2 first 08:00, last 19:00');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3),(select mon from d3))),
-  11, 'V3 taken slot excluded');
+  10, 'V3 taken slots excluded: her 10:00 and Paulina''s 15:00 (clinic-wide until 0800)');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select tue from d3),(select thu from d3))),
   0, 'V4 time-off days have no slots');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select sun from d3),(select sun from d3))),
@@ -151,6 +151,36 @@ update public.clinics set slot_minutes = 60 where id = 'a0000000-0000-4000-8000-
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),(select mon from d3)+13) s
            where public._slot_problem('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',s.slot_date,s.slot_time) is not null),
   0, 'V11 parity: every available slot passes the request_appointment rule');
+-- [C] clinic-wide "taken" until the 0800 cutover (QA gap 1)
+select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),(select mon from d3))),
+  7, 'C1 Paulina Mon: 9 minus her 15:00 minus Francia''s 10:00 (clinic-wide until 0800)');
+insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time)
+select 'a0000000-0000-4000-8000-00000000000c','Legado','l@x.com','initial', mon + 7, '09:00' from d3;
+insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, status)
+select 'a0000000-0000-4000-8000-00000000000c','Rechazada','r@x.com','initial', mon + 7, '11:00', 'declined' from d3;
+select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,(select mon from d3)+7)),
+  11, 'C2 legacy NULL-staff booking hides 09:00; declined 11:00 stays free');
+select throws_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'09:00','P','p@x.com','','initial')$$,
+  'P0001', 'slot_taken', 'C3 request over a legacy NULL-staff booking -> slot_taken');
+select throws_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),'10:00','P','p@x.com','','initial')$$,
+  'P0001', 'slot_taken', 'C4 other therapist, same clinic slot -> slot_taken (until 0800)');
+select lives_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'11:00','P','p@x.com','','initial')$$,
+  'C5 declined booking does not block');
+
+-- [O] overlapping hours (QA gap 2)
+select throws_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',1,'12:00','16:00')$$,
+  '23P01', null, 'O1 overlapping range, same therapist + weekday rejected');
+select throws_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',1,'08:00','13:00')$$,
+  '23P01', null, 'O2 identical range rejected');
+select lives_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',1,'13:00','15:00')$$,
+  'O3 touching range (13–15 between 08–13 and 15–19) allowed');
+select lives_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',0,'08:00','20:00')$$,
+  'O4 same times, different weekday allowed');
+select lives_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000004',1,'08:00','20:00')$$,
+  'O5 same weekday + times, different staff allowed');
+select throws_ok($$update public.staff_hours set end_time = '14:00' where staff_id = 'a0000000-0000-4000-8000-000000000003' and weekday = 1 and start_time = '08:00'$$,
+  '23P01', null, 'O6 update into an overlap rejected');
+
 select is(pg_get_function_result('public.list_therapists(uuid)'::regprocedure), 'TABLE(id uuid, display_name text)', 'L5 list_therapists exposes id + display_name only');
 
 -- therapist: reads hours, cannot write (test 13)
@@ -190,7 +220,7 @@ select throws_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday,
 -- ============ [X] lifecycle (test 14) ============
 reset role;
 update public.staff set active = false where user_id = 'a0000000-0000-4000-8000-000000000002';
-select is((select count(*)::int from public.appointments where staff_id = 'a0000000-0000-4000-8000-000000000002' and status = 'pending'), 1,
+select is((select count(*)::int from public.appointments where staff_id = 'a0000000-0000-4000-8000-000000000002' and status = 'pending'), 2,
   'X1 deactivating a therapist leaves bookings untouched');
 select is((select count(*)::int from public.list_therapists('a0000000-0000-4000-8000-00000000000c')), 1, 'X2 deactivated therapist leaves the public list');
 delete from public.staff where user_id = 'a0000000-0000-4000-8000-000000000002';
