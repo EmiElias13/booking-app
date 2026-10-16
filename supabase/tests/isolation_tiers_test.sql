@@ -142,8 +142,12 @@ select ok(not coalesce(public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', a
 select ok(not coalesce(public.has_role(null, array['admin']), false), 'H5 null clinic -> false');
 -- [M] staff management
 select lives_ok($$insert into public.staff (user_id, clinic_id, role) values ('aaaaaaaa-0000-4000-8000-000000000005','aaaaaaaa-0000-4000-8000-00000000000c','front_desk')$$, 'M1 admin adds staff to own clinic');
-update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c';
-select is((select role from public.staff where user_id='aaaaaaaa-0000-4000-8000-000000000005'), 'therapist', 'M2 admin changes a role in own clinic');
+-- 20261016000750: roles are no longer changed from the app (admin picks one on insert only).
+select throws_ok($$update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c'$$, '42501', null, 'M2 admin cannot change a role (service role only since 0750)');
+reset role;
+update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c';  -- same end state as before 0750
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-00000000000c')$$, '42501', null, 'M3 admin A cannot add staff to clinic B');
 update public.staff set role='front_desk' where clinic_id='bbbbbbbb-0000-4000-8000-00000000000c';  -- verified in V2
 select throws_ok($$update public.staff set clinic_id='bbbbbbbb-0000-4000-8000-00000000000c' where user_id='aaaaaaaa-0000-4000-8000-000000000005'$$, '42501', null, 'M4 admin A cannot move staff into clinic B');
