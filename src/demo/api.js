@@ -78,18 +78,21 @@ export async function listAppointments() {
   return [...appointments]
 }
 
+// Guest booking mirrors request_appointment (0700): therapist, hours, time off, past, free.
+function bookingError(code, field = 'time') {
+  const message = strings.errors.booking[code] ?? strings.errors.send
+  return Object.assign(new Error(message), { code, status: 409, fieldErrors: { [field]: message } })
+}
+
 export async function createAppointment(request) {
-  const taken = appointments.some(
-    (appointment) =>
-      appointment.date === request.date &&
-      appointment.time === request.time &&
-      appointment.status !== 'declined',
-  )
-  if (taken) {
-    const error = new Error(strings.errors.slotTaken)
-    error.status = 409
-    error.fieldErrors = { time: strings.errors.slotTaken }
-    throw error
+  const therapist = demoStaff.find((s) => s.id === request.staffId && s.role === 'therapist' && s.active)
+  if (!therapist) throw bookingError('inactive_staff', 'therapist')
+  const free = demoFreeSlots(request.staffId, request.date, request.date)
+  if (!free.some((s) => s.time === request.time)) {
+    const taken = appointments.some(
+      (a) => a.date === request.date && a.time === request.time && a.status !== 'declined',
+    )
+    throw bookingError(taken ? 'slot_taken' : 'outside_hours')
   }
 
   const appointment = {
@@ -103,6 +106,7 @@ export async function createAppointment(request) {
     time: request.time,
     status: 'pending',
     staffNote: '',
+    staffId: request.staffId,
     requestedAt: new Date().toISOString(),
   }
   appointments.push(appointment)
@@ -196,4 +200,44 @@ export async function addTimeOff(row) {
 export async function deleteTimeOff(id) {
   const i = demoTimeOff.findIndex((o) => o.id === id)
   if (i >= 0) demoTimeOff.splice(i, 1)
+}
+
+// ---------- Guest picker (demo) ----------
+const DEMO_SLOT_MINUTES = 60
+const toMin = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+const toHHMM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+export async function listTherapists() {
+  return demoStaff
+    .filter((s) => s.role === 'therapist' && s.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.displayName.localeCompare(b.displayName))
+    .map((s) => ({ id: s.id, displayName: s.displayName }))
+}
+
+// Same rules as get_available_slots: hours grid, minus time off, past-today and taken (clinic-wide until 0800).
+function demoFreeSlots(staffId, from, to) {
+  const s = demoStaff.find((x) => x.id === staffId)
+  if (!s || s.role !== 'therapist' || !s.active) return []
+  const today = localISODate(0)
+  const now = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const start = from < today ? today : from
+  const out = []
+  for (let d = new Date(`${start}T00:00:00Z`); d.toISOString().slice(0, 10) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
+    const date = d.toISOString().slice(0, 10)
+    if (demoTimeOff.some((o) => o.staffId === staffId && date >= o.startDate && date <= o.endDate)) continue
+    for (const h of demoHours.filter((x) => x.staffId === staffId && x.weekday === d.getUTCDay())) {
+      for (let m = toMin(h.start); m + DEMO_SLOT_MINUTES <= toMin(h.end); m += DEMO_SLOT_MINUTES) {
+        if (date === today && m <= nowMin) continue
+        const time = toHHMM(m)
+        if (appointments.some((a) => a.date === date && a.time === time && a.status !== 'declined')) continue
+        out.push({ date, time })
+      }
+    }
+  }
+  return out
+}
+
+export async function listAvailableSlots(staffId, from, to) {
+  return demoFreeSlots(staffId, from, to)
 }
