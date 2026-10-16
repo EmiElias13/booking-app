@@ -30,13 +30,11 @@ describe('guest role rules', () => {
     localStorage.setItem(`booking_staff_session:${CLINIC}`, JSON.stringify({ access_token: 'staff-jwt', expires_at: 4102444800 }))
     await api.listTherapists()
     await api.listAvailableSlots('t1', '2026-10-15', '2026-10-30')
-    await api.listTakenSlots('2026-10-15', '2026-10-30')
     fetchMock.mockImplementationOnce(() => okJson('new-id'))
     await api.createAppointment({ staffId: 't1', date: '2026-10-19', time: '09:00', clientName: 'QA', email: 'qa@example.com', service: 'initial' })
     expect(calls()).toEqual([
       { path: '/rpc/list_therapists', method: 'POST', auth: 'Bearer anon-key' },
       { path: '/rpc/get_available_slots', method: 'POST', auth: 'Bearer anon-key' },
-      { path: '/rpc/get_taken_slots', method: 'POST', auth: 'Bearer anon-key' },
       { path: '/rpc/request_appointment', method: 'POST', auth: 'Bearer anon-key' },
     ])
   })
@@ -46,6 +44,7 @@ describe('guest allowlist after the 0800 cutover', () => {
   it('guests can no longer POST /appointments directly (booking goes through request_appointment)', () => {
     expect(() => api.applyMiddleware('guest', 'POST', '/appointments')).toThrow(/guest cannot POST \/appointments/)
     expect(() => api.applyMiddleware('guest', 'POST', '/rpc/request_appointment')).not.toThrow()
+    expect(() => api.applyMiddleware('guest', 'POST', '/rpc/get_taken_slots')).toThrow()
   })
 })
 

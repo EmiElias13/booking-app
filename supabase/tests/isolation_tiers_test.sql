@@ -13,7 +13,7 @@
 -- Sections: [P] ported 15  [G] guest  [R] RPC  [L] limits  [O] role values  [H] has_role
 --           [M] staff management  [T] therapist  [F] front desk  [S] staff_id  [D] deletes  [N] no past slots today  [V] verifications
 begin;
-select plan(118);
+select plan(119);
 
 -- ============ fixtures (service role) ============
 insert into auth.users (id, email) values
@@ -99,9 +99,9 @@ select throws_ok($$insert into public.appointments (clinic_id, client_name, emai
 -- N2 can only fail during the clinic's last minute of the day (23:59).
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'23:59')$$, '42501', null, 'N2 (0800) anon direct insert for later today is rejected: guests use request_appointment');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c') + 1,'08:00')$$, '42501', null, 'N3 (0800) anon direct insert for tomorrow is rejected');
-select ok((select count(*) = 2 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30))
-      and not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30) where slot_time='10:00')
-      and (select count(*) = 0 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+365)),
+select ok((select count(*) = 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30,'aaaaaaaa-0000-4000-8000-000000000002'))
+      and not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30,'bbbbbbbb-0000-4000-8000-000000000001'))
+      and (select count(*) = 0 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+365,'aaaaaaaa-0000-4000-8000-000000000002')),
   'P3 get_taken_slots is clinic-scoped and range-capped');
 select throws_ok($$insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-00000000000c','Nuevo','n@x.com','initial','Espalda',current_date+3,'10:00')$$, '42501', null, 'P4 (0800) anon cannot insert appointments directly');
 select ok(not has_table_privilege('anon','public.appointments','insert'), 'P5 (0800) anon has no insert privilege on appointments');
@@ -119,9 +119,10 @@ select throws_ok($$insert into public.appointments (clinic_id, client_name, emai
 select throws_ok($$select 1 from public.staff$$, '42501', null, 'G8 anon cannot read staff');
 select throws_ok($$select public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['admin'])$$, '42501', null, 'G9 anon cannot execute has_role');
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('cccccccc-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-00000000000c')$$, '42501', null, 'G10 anon cannot add staff');
-select is(pg_get_function_result('public.get_taken_slots(uuid,date,date)'::regprocedure), 'TABLE(slot_date date, slot_time text)', 'R1 get_taken_slots returns only slot_date, slot_time (no id/name/email/status/notes/staff_id)');
-select is((select count(*)::int from public.get_taken_slots('bbbbbbbb-0000-4000-8000-00000000000c',current_date,current_date+30)), 1, 'R2 clinic B availability = only its own 1 slot');
-select is((select count(*)::int from public.get_taken_slots('dddddddd-0000-4000-8000-0000000000dc',current_date,current_date+30)), 0, 'R3 empty clinic returns nothing');
+select is(pg_get_function_result('public.get_taken_slots(uuid,date,date,uuid)'::regprocedure), 'TABLE(slot_date date, slot_time text)', 'R1 get_taken_slots returns only slot_date, slot_time (no id/name/email/status/notes/staff_id)');
+select is((select count(*)::int from public.get_taken_slots('bbbbbbbb-0000-4000-8000-00000000000c',current_date,current_date+30,'bbbbbbbb-0000-4000-8000-000000000001')), 1, 'R2 clinic B availability = only its own 1 slot');
+select is((select count(*)::int from public.get_taken_slots('dddddddd-0000-4000-8000-0000000000dc',current_date,current_date+30,'aaaaaaaa-0000-4000-8000-000000000002')), 0, 'R3 empty clinic returns nothing');
+select ok(to_regprocedure('public.get_taken_slots(uuid,date,date)') is null, 'R4 (0900) clinic-wide 3-arg get_taken_slots is gone');
 reset role;
 insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-00000000000c','Nuevo','n@x.com','initial','Espalda',current_date+3,'10:00');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, staff_id) values ('aaaaaaaa-0000-4000-8000-00000000000c','Dup','d@x.com','initial',current_date+3,'09:00','aaaaaaaa-0000-4000-8000-000000000002')$$, '23505', null, 'P5b same therapist, same slot -> 23505');
