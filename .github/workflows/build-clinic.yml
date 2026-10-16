@@ -17,7 +17,7 @@ on:
       app_ref:
         description: booking-app git ref to build
         type: string
-        default: template/booking-app   # main has no build-clinic.yml yet
+        default: main
       branding_repo:
         description: Clinic repo with clinic.config.json and public/ (owner/name). Empty = template defaults.
         type: string
