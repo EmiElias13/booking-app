@@ -19,3 +19,8 @@ export function createLatestGate() {
     isCurrent: (id) => id === latest,
   }
 }
+
+// Own-key lookup so codes like 'constructor' or 'toString' never hit Object.prototype (L1).
+export function lookupCode(table, code) {
+  return typeof code === 'string' && Object.hasOwn(table, code) ? table[code] : undefined
+}

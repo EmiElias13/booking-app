@@ -4,7 +4,7 @@ import { useCountUp } from '../hooks/useCountUp.js'
 import { strings } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
 import { useAuth } from '../store/auth.jsx'
-import { UNASSIGNED, matchesTherapist, reviewReasons, therapistOptions } from '../store/approvalsLogic.js'
+import { UNASSIGNED, matchesTherapist, missingTherapistIds, reviewReasons, therapistLabel, therapistOptions } from '../store/approvalsLogic.js'
 
 const FILTERS = [
   { id: 'pending', label: strings.approvals.filters.pending },
@@ -43,8 +43,9 @@ export default function Approvals() {
     [allAppointments, activeTherapistFilter],
   )
 
+  const missingTherapists = useMemo(() => missingTherapistIds(allAppointments, team.staff), [allAppointments, team.staff])
   const staffName = (staffId) =>
-    staffId ? team.staff.find((member) => member.id === staffId)?.displayName ?? '' : strings.approvals.unassigned
+    therapistLabel(staffId, team.staff, { unassigned: strings.approvals.unassigned, missing: strings.approvals.missingTherapist })
 
   const nowHHMM = clinicTimeHHMM()
   const reviewFor = (appointment) => reviewReasons(appointment, { ...team, today: clinicToday, nowHHMM })
@@ -214,6 +215,11 @@ export default function Approvals() {
             {therapists.map((member) => (
               <option key={member.id} value={member.id}>
                 {member.active ? member.displayName : `${member.displayName} ${strings.approvals.inactiveSuffix}`}
+              </option>
+            ))}
+            {missingTherapists.map((id) => (
+              <option key={id} value={id}>
+                {strings.approvals.missingTherapist}
               </option>
             ))}
             {hasUnassigned && <option value={UNASSIGNED}>{strings.approvals.unassigned}</option>}

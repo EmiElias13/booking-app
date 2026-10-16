@@ -267,7 +267,7 @@ export default function Home() {
           </legend>
           {therapistsError && therapists.length === 0 && (
             <div className="muted" role="alert">
-              <p>{strings.home.loadError}</p>
+              <p>{strings.home.therapistsLoadError}</p>
               <button type="button" className="btn btn-ghost" onClick={refresh}>
                 {strings.home.retry}
               </button>

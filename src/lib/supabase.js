@@ -1,5 +1,6 @@
 import { config } from '../config/clinic.config.js'
 import { strings } from '../i18n/strings.js'
+import { lookupCode } from '../store/bookingLogic.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -153,9 +154,9 @@ const BOOKING_ERRORS = {
 
 export function throwQueryError(body, status, role) {
   const code = body?.code
-  const booking = code === 'P0001' ? BOOKING_ERRORS[body?.message] : null
+  const booking = code === 'P0001' ? lookupCode(BOOKING_ERRORS, body?.message) : null
   if (booking) {
-    const message = strings.errors.booking[body.message] ?? strings.errors.send
+    const message = lookupCode(strings.errors.booking, body.message) ?? strings.errors.send
     const error = new Error(message)
     error.status = booking.status
     error.code = body.message

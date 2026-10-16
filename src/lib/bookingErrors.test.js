@@ -72,3 +72,12 @@ describe('request_appointment error mapping (live)', () => {
     expect(Object.keys(error.fieldErrors)).toEqual(['form'])
   })
 })
+
+describe('prototype keys are not booking codes (L1)', () => {
+  it.each(['constructor', 'toString', '__proto__'])('P0001 %s falls back to the generic send error', (code) => {
+    let error
+    try { api.throwQueryError({ code: 'P0001', message: code }, 400, 'guest') } catch (e) { error = e }
+    expect(error.message).toBe('No pudimos enviar tu solicitud. Inténtalo de nuevo.')
+    expect(error.code).not.toBe(code)
+  })
+})
