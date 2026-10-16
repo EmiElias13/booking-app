@@ -17,6 +17,7 @@ Scope: spec only. No branch, commit or PR without Emiliano's explicit go.
 11. Seed hours for Francia, Paulina, Manganita, Mariano: Mon–Sat 08:00–20:00 (60-min slots → 08:00…19:00, 12 per day). Note: this drops today's 13:00 lunch gap and adds 18:00/19:00; the admin can split shifts later in Equipo.
 12. Bookings hit by deactivation or new time off are left untouched; staff handle them. Approvals shows a "needs attention" flag (cheap: computed client-side from data staff can already read).
 13. The patient confirmation shows the therapist's name.
+14. Only **active** staff count toward the 3 Básico / 6 Clínica limit. The limit is checked on insert of an active member, on moving to another clinic, and on reactivation (false → true); inactive members can always be added or deactivated.
 
 ## 2. Current schema (what we build on)
 - `staff(user_id, clinic_id, role in admin|therapist|front_desk, created_at)`, PK `(user_id, clinic_id)`; staff-limit trigger (3 Básico / 6 Clínica).
@@ -34,6 +35,9 @@ alter table public.staff
   add column active boolean not null default true,
   add column sort_order smallint not null default 0;       -- list order shown to patients
 grant update (role, display_name, active, sort_order) on public.staff to authenticated;   -- admin-only via existing policy
+
+-- staff limit (decision 14): enforce_staff_limit() counts active staff only; trigger fires on
+-- insert or update of (clinic_id, active), so reactivation at the limit fails with 23514.
 
 -- clinic session length (one per clinic, decision 2)
 alter table public.clinics add column slot_minutes int not null default 60 check (slot_minutes between 10 and 240);
@@ -134,6 +138,7 @@ Rollback:
 3. `request_appointment` OK for valid slot → row `pending`, `staff_id` set, `staff_note ''`.
 4. rejects: therapist of another clinic; inactive; admin or front_desk staff_id; unknown clinic.
 5a. until 0800: another therapist's or a legacy NULL-staff booking blocks the slot; declined doesn't.
+5c. staff limit counts active only: inactive add at the limit OK, reactivation at the limit rejected (service role and admin), deactivation/edits always OK, move into a full clinic rejected.
 5b. overlapping `staff_hours` for the same staff + weekday rejected (23P01); touching ranges, other weekday, other staff allowed.
 5. rejects: outside hours; last slot ending after `end_time`; off-grid time (e.g. 08:30 with 60-min slots); wrong weekday (Sunday for seeded staff); split-shift gap.
 6. rejects: date inside time off (start, middle, end day).

@@ -217,6 +217,40 @@ select throws_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday,
 select throws_ok($$insert into public.staff_hours (clinic_id, staff_id, weekday, start_time, end_time) values ('a0000000-0000-4000-8000-00000000000c','b0000000-0000-4000-8000-000000000002',2,'09:00','14:00')$$,
   '23503', null, 'S15 hours cannot point at staff of another clinic');
 
+-- ============ [K] staff limit counts active staff only ============
+reset role;
+-- Clinic B is basico (3): admin + therapist active = 2.
+insert into auth.users (id, email) values
+  ('b0000000-0000-4000-8000-000000000003','k3@test.local'),
+  ('b0000000-0000-4000-8000-000000000004','k4@test.local'),
+  ('b0000000-0000-4000-8000-000000000005','k5@test.local');
+select lives_ok($$insert into public.staff (user_id, clinic_id, role) values ('b0000000-0000-4000-8000-000000000003','b0000000-0000-4000-8000-00000000000c','therapist')$$,
+  'K1 3rd active member fits basico');
+select throws_ok($$insert into public.staff (user_id, clinic_id, role) values ('b0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-00000000000c','therapist')$$,
+  '23514', null, 'K2 4th active member rejected');
+select lives_ok($$insert into public.staff (user_id, clinic_id, role, active) values ('b0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-00000000000c','therapist',false)$$,
+  'K3 inactive member can be added at the limit');
+select throws_ok($$update public.staff set active = true where user_id = 'b0000000-0000-4000-8000-000000000004'$$,
+  '23514', null, 'K4 reactivation at the limit rejected');
+select lives_ok($$update public.staff set display_name = 'Edit', role = 'front_desk' where user_id = 'b0000000-0000-4000-8000-000000000003'$$,
+  'K5 editing an active member at the limit is fine');
+select lives_ok($$update public.staff set active = false where user_id = 'b0000000-0000-4000-8000-000000000003'$$,
+  'K6 deactivation always allowed');
+select lives_ok($$update public.staff set active = true where user_id = 'b0000000-0000-4000-8000-000000000004'$$,
+  'K7 reactivation allowed once a seat is free');
+select lives_ok($$update public.staff set active = true where user_id = 'b0000000-0000-4000-8000-000000000004'$$,
+  'K8 no-op active=true on an active member is fine');
+select throws_ok($$insert into public.staff (user_id, clinic_id, role) values ('b0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-00000000000c','therapist');
+                   update public.staff set clinic_id = 'b0000000-0000-4000-8000-00000000000c' where user_id = 'b0000000-0000-4000-8000-000000000005'$$,
+  '23514', null, 'K9 moving an active member into a full clinic rejected');
+select is((select count(*)::int from public.staff where clinic_id = 'b0000000-0000-4000-8000-00000000000c' and active), 3, 'K10 clinic B ends at 3 active');
+-- admin reactivating through the API path hits the same limit
+set local role authenticated;
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"b0000000-0000-4000-8000-000000000001"}', true);
+select throws_ok($$update public.staff set active = true where user_id = 'b0000000-0000-4000-8000-000000000003'$$,
+  '23514', null, 'K11 admin reactivation at the limit rejected');
+reset role;
+
 -- ============ [X] lifecycle (test 14) ============
 reset role;
 update public.staff set active = false where user_id = 'a0000000-0000-4000-8000-000000000002';

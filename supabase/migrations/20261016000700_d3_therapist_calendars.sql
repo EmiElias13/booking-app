@@ -9,6 +9,40 @@ alter table public.staff
   add column if not exists sort_order smallint not null default 0;
 grant update (role, display_name, active, sort_order) on table public.staff to authenticated;  -- "Admin edits staff" policy limits it to admins
 
+-- ---------- staff limit counts ACTIVE staff only (Emiliano, 2026-10-16) ----------
+-- Replaces the 0400 version. Checked on insert of an active member, on moving a member to another
+-- clinic, and on reactivation (active false -> true). Inactive members never count and can always be
+-- added or deactivated. Downgrade rule unchanged: existing staff stay, only new/reactivated are blocked.
+create or replace function public.enforce_staff_limit() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare lim int; n int;
+begin
+  -- BEFORE triggers run before RLS WITH CHECK: refuse non-admins first so the limit error
+  -- doesn't leak another clinic's limit/headcount (QA finding, 0400).
+  if current_setting('role', true) in ('authenticated','anon') and not public.has_role(new.clinic_id, array['admin']) then
+    raise exception 'new row violates row-level security policy for table "staff"' using errcode = 'insufficient_privilege';
+  end if;
+  if not new.active then
+    return new;                                   -- inactive members don't count
+  end if;
+  if tg_op = 'UPDATE' and new.clinic_id = old.clinic_id and old.active then
+    return new;                                   -- already counted here (e.g. role/name edits)
+  end if;
+  perform 1 from public.clinics where id = new.clinic_id for update;   -- serialize concurrent changes
+  lim := public.clinic_staff_limit(new.clinic_id);
+  select count(*) into n from public.staff
+  where clinic_id = new.clinic_id and active
+    and not (tg_op = 'UPDATE' and user_id = old.user_id and clinic_id = old.clinic_id);
+  if n >= lim then
+    raise exception 'staff limit (%) reached for clinic %', lim, new.clinic_id using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+revoke execute on function public.enforce_staff_limit() from public, anon, authenticated;
+drop trigger if exists staff_limit on public.staff;
+create trigger staff_limit before insert or update of clinic_id, active on public.staff
+  for each row execute function public.enforce_staff_limit();
+
 -- ---------- one session length per clinic ----------
 alter table public.clinics
   add column if not exists slot_minutes int not null default 60 check (slot_minutes between 10 and 240);
