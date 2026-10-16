@@ -5,6 +5,9 @@ import {
   isAppConfigured,
   listAppointments,
   listAvailableSlots,
+  listStaff,
+  listStaffHours,
+  listTimeOff,
   listTherapists,
   updateAppointment,
 } from '../lib/api.js'
@@ -14,6 +17,19 @@ import { useAuth } from './auth.jsx'
 import { createLatestGate, keepTherapist } from './bookingLogic.js'
 
 const AppointmentsContext = createContext(null)
+
+const EMPTY_TEAM = { staff: [], hours: [], timeOff: [] }
+
+// Staff list, hours and time off for the Approvals filter and "Revisar" flag.
+// Optional extras: if they fail, Approvals still works, just without names/flags.
+async function loadTeam() {
+  try {
+    const [staff, hours, timeOff] = await Promise.all([listStaff(), listStaffHours(), listTimeOff()])
+    return { staff, hours, timeOff }
+  } catch {
+    return EMPTY_TEAM
+  }
+}
 
 function slotRange(today) {
   const to = new Date(`${today}T00:00:00Z`)
@@ -43,6 +59,7 @@ function toSlotMap(slots) {
 export function AppointmentsProvider({ children }) {
   const { isStaff } = useAuth()
   const [appointments, setAppointments] = useState([])
+  const [team, setTeam] = useState(EMPTY_TEAM)
   const [therapists, setTherapists] = useState([])
   const [therapistId, setTherapistId] = useState('')
   const [available, setAvailable] = useState([])
@@ -66,7 +83,10 @@ export function AppointmentsProvider({ children }) {
 
     try {
       if (isStaff) {
-        setAppointments(await listAppointments())
+        const [list, nextTeam] = await Promise.all([listAppointments(), loadTeam()])
+        setAppointments(list)
+        setTeam(nextTeam)
+        setClinicToday(await loadClinicToday())
       } else {
         const today = await loadClinicToday()
         setClinicToday(today)
@@ -159,11 +179,11 @@ export function AppointmentsProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
+      appointments, team, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
       therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
       therapistsError, slotsError, retrySlots,
     }),
-    [appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
+    [appointments, team, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
       therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
       therapistsError, slotsError, retrySlots],
   )

@@ -17,11 +17,11 @@ function localISODate(offsetDays) {
 
 function seedAppointments() {
   const rows = [
-    { clientName: 'Ana López', email: 'ana@ejemplo.com', service: 'initial', day: 1, time: '09:00', status: 'pending', notes: 'Molestia en la rodilla al subir escaleras.' },
-    { clientName: 'Carlos Ruiz', email: 'carlos@ejemplo.com', service: 'followup', day: 1, time: '11:00', status: 'pending', notes: '' },
-    { clientName: 'Sofía Méndez', email: 'sofia@ejemplo.com', service: 'short', day: 2, time: '15:00', status: 'pending', notes: 'Prefiero por la tarde.' },
-    { clientName: 'Jorge Castillo', email: 'jorge@ejemplo.com', service: 'followup', day: 0, time: '10:00', status: 'approved', staffNote: 'Te esperamos, llega 10 min antes.' },
-    { clientName: 'Lucía Herrera', email: 'lucia@ejemplo.com', service: 'initial', day: 3, time: '08:00', status: 'declined', staffNote: 'Ese día no hay espacio, ¿te funciona el jueves?' },
+    { clientName: 'Ana López', email: 'ana@ejemplo.com', service: 'initial', day: 1, time: '09:00', staffId: 'demo-t1', status: 'pending', notes: 'Molestia en la rodilla al subir escaleras.' },
+    { clientName: 'Carlos Ruiz', email: 'carlos@ejemplo.com', service: 'followup', day: 1, time: '11:00', staffId: 'demo-t2', status: 'pending', notes: '' },
+    { clientName: 'Sofía Méndez', email: 'sofia@ejemplo.com', service: 'short', day: 2, time: '15:00', staffId: 'demo-t1', status: 'pending', notes: 'Prefiero por la tarde.' },
+    { clientName: 'Jorge Castillo', email: 'jorge@ejemplo.com', service: 'followup', day: 0, time: '10:00', staffId: 'demo-t2', status: 'approved', staffNote: 'Te esperamos, llega 10 min antes.' },
+    { clientName: 'Lucía Herrera', email: 'lucia@ejemplo.com', service: 'initial', day: 3, time: '08:00', staffId: 'demo-t1', status: 'declined', staffNote: 'Ese día no hay espacio, ¿te funciona el jueves?' },
   ]
 
   return rows.map((row) => ({
@@ -35,6 +35,7 @@ function seedAppointments() {
     time: row.time,
     status: row.status,
     staffNote: row.staffNote ?? '',
+    staffId: row.staffId ?? null,
     requestedAt: new Date().toISOString(),
   }))
 }

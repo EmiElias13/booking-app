@@ -69,6 +69,14 @@ const baseStrings = {
     yourNote: 'Tu mensaje:',
     loading: 'Cargando solicitudes…',
     empty: 'Aún no hay nada aquí. Las solicitudes de la página de citas aparecerán en esta lista.',
+    therapist: 'Fisioterapeuta', allTherapists: 'Todos', unassigned: 'Sin asignar', inactiveSuffix: '(inactivo)',
+    emptyFiltered: 'No hay solicitudes de este fisioterapeuta en esta lista.',
+    review: 'Revisar',
+    reviewReasons: {
+      inactive: 'El fisioterapeuta está inactivo.',
+      timeOff: 'Cae en un día libre del fisioterapeuta.',
+      outsideHours: 'Está fuera del horario del fisioterapeuta.',
+    },
   },
   team: {
     title: 'Equipo',
