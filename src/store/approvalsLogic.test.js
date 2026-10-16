@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { UNASSIGNED, matchesTherapist, reviewReasons, therapistOptions } from './approvalsLogic.js'
+import { UNASSIGNED, matchesTherapist, missingTherapistIds, reviewReasons, therapistLabel, therapistOptions } from './approvalsLogic.js'
 
 // 2099-01-05 is a Monday (weekday 1).
 const staff = [
@@ -74,5 +74,41 @@ describe('therapist filter helpers', () => {
     expect(matchesTherapist({ staffId: 't2' }, 't1')).toBe(false)
     expect(matchesTherapist({ staffId: null }, UNASSIGNED)).toBe(true)
     expect(matchesTherapist({ staffId: 't1' }, UNASSIGNED)).toBe(false)
+  })
+})
+
+describe('outside hours uses the booking end when the slot length is known (QA low 1)', () => {
+  const c60 = { ...ctx, slotMinutes: 60 }
+  it('flags a booking that starts inside hours but runs past the end', () => {
+    expect(reviewReasons(appt({ time: '12:30' }), c60)).toEqual(['outsideHours']) // ends 13:30, shift ends 13:00
+    expect(reviewReasons(appt({ time: '19:30' }), c60)).toEqual(['outsideHours'])
+  })
+  it('accepts a booking that ends exactly at the end of hours', () => {
+    expect(reviewReasons(appt({ time: '12:00' }), c60)).toEqual([])
+    expect(reviewReasons(appt({ time: '19:00' }), c60)).toEqual([])
+  })
+  it('flags a booking that would run past midnight', () => {
+    const late = { ...c60, hours: [{ staffId: 't1', weekday: 1, start: '08:00', end: '23:59' }] }
+    expect(reviewReasons(appt({ time: '23:30' }), late)).toEqual(['outsideHours'])
+  })
+  it('falls back to the start time when the slot length is unknown', () => {
+    expect(reviewReasons(appt({ time: '12:30' }), ctx)).toEqual([])
+  })
+})
+
+describe('missing therapist placeholder (QA low 2)', () => {
+  const labels = { unassigned: 'Sin asignar', missing: 'Fisioterapeuta no disponible' }
+  it('shows the name, the unassigned label, or the placeholder (never blank)', () => {
+    expect(therapistLabel('t1', staff, labels)).toBe('Ana')
+    expect(therapistLabel(null, staff, labels)).toBe('Sin asignar')
+    expect(therapistLabel('gone', staff, labels)).toBe('Fisioterapeuta no disponible')
+    expect(therapistLabel('t1', [], labels)).toBe('Fisioterapeuta no disponible')
+  })
+  it('lists ids used by bookings but missing from staff, once each', () => {
+    const list = [{ staffId: 't1' }, { staffId: 'gone' }, { staffId: 'gone' }, { staffId: null }]
+    expect(missingTherapistIds(list, staff)).toEqual(['gone'])
+  })
+  it('keeps the inactive Revisar reason for a missing therapist', () => {
+    expect(reviewReasons(appt({ staffId: 'gone' }), ctx)).toEqual(['inactive'])
   })
 })

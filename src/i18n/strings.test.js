@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deepMerge, t } from './strings.js'
+import { deepMerge, strings, t } from './strings.js'
 
 describe('t()', () => {
   it('fills placeholders and blanks missing values', () => {
@@ -22,5 +22,15 @@ describe('deepMerge()', () => {
     expect(out.a.y).toBeUndefined()
     expect(Object.hasOwn(out, 'constructor')).toBe(false)
     expect({}.x).toBeUndefined()
+  })
+})
+
+describe('D3 polish strings (L7, QA low 2)', () => {
+  it('therapist-list load error has its own wording, distinct from the slots error', () => {
+    expect(strings.home.therapistsLoadError).toBe('No pudimos cargar los fisioterapeutas. Revisa tu conexión e inténtalo de nuevo.')
+    expect(strings.home.therapistsLoadError).not.toBe(strings.home.loadError)
+  })
+  it('has the missing-therapist placeholder', () => {
+    expect(strings.approvals.missingTherapist).toBe('Fisioterapeuta no disponible')
   })
 })

@@ -23,6 +23,7 @@ const baseStrings = {
     noSlots: 'No hay horarios disponibles en los próximos 14 días. Contáctanos para agendar:',
     noSlotsNoContact: 'Intenta otra fecha o vuelve más tarde',
     loadError: 'No pudimos cargar los horarios. Revisa tu conexión e inténtalo de nuevo.',
+    therapistsLoadError: 'No pudimos cargar los fisioterapeutas. Revisa tu conexión e inténtalo de nuevo.',
     retry: 'Reintentar',
     myRequests: 'Tus solicitudes', clinicNote: 'Mensaje de la clínica:',
   },
@@ -70,6 +71,7 @@ const baseStrings = {
     loading: 'Cargando solicitudes…',
     empty: 'Aún no hay nada aquí. Las solicitudes de la página de citas aparecerán en esta lista.',
     therapist: 'Fisioterapeuta', allTherapists: 'Todos', unassigned: 'Sin asignar', inactiveSuffix: '(inactivo)',
+    missingTherapist: 'Fisioterapeuta no disponible',
     emptyFiltered: 'No hay solicitudes de este fisioterapeuta en esta lista.',
     review: 'Revisar',
     reviewReasons: {

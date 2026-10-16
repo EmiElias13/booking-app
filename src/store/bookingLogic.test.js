@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createLatestGate, isSlotRejected, keepTherapist } from './bookingLogic.js'
+import { createLatestGate, isSlotRejected, keepTherapist, lookupCode } from './bookingLogic.js'
 
 describe('isSlotRejected', () => {
   it('is true for 409 slot errors', () => {
@@ -42,5 +42,15 @@ describe('createLatestGate', () => {
     const idA = a.next()
     b.next(); b.next()
     expect(a.isCurrent(idA)).toBe(true)
+  })
+})
+
+describe('lookupCode (L1)', () => {
+  const table = { slot_taken: 'x' }
+  it('returns own keys only', () => {
+    expect(lookupCode(table, 'slot_taken')).toBe('x')
+    for (const code of ['constructor', 'toString', '__proto__', 'hasOwnProperty', undefined, null, 1]) {
+      expect(lookupCode(table, code)).toBeUndefined()
+    }
   })
 })

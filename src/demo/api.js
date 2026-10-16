@@ -1,4 +1,5 @@
 import { strings } from '../i18n/strings.js'
+import { lookupCode } from '../store/bookingLogic.js'
 
 const SESSION_KEY = 'clinic_demo_session'
 
@@ -6,13 +7,30 @@ export const isSupabaseConfigured = true
 export const isAppConfigured = true
 
 function localISODate(offsetDays) {
+  return isoOf(dateAt(offsetDays))
+}
+
+function dateAt(offsetDays) {
   const date = new Date()
   date.setHours(0, 0, 0, 0)
   date.setDate(date.getDate() + offsetDays)
+  return date
+}
+
+function isoOf(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// First day from offsetDays on where the therapist has hours (no Sunday or day-off seeds), at most a week ahead.
+export function seedDate(offsetDays, staffId, hours) {
+  for (let extra = 0; extra < 7; extra += 1) {
+    const date = dateAt(offsetDays + extra)
+    if (hours.some((h) => h.staffId === staffId && h.weekday === date.getDay())) return isoOf(date)
+  }
+  return localISODate(offsetDays)
 }
 
 function seedAppointments() {
@@ -31,7 +49,7 @@ function seedAppointments() {
     phone: '',
     service: row.service,
     notes: row.notes ?? '',
-    date: localISODate(row.day),
+    date: seedDate(row.day, row.staffId, demoHours),
     time: row.time,
     status: row.status,
     staffNote: row.staffNote ?? '',
@@ -40,7 +58,6 @@ function seedAppointments() {
   }))
 }
 
-const appointments = seedAppointments()
 
 export function getSession() {
   try {
@@ -81,7 +98,7 @@ export async function listAppointments() {
 
 // Guest booking mirrors request_appointment (0700): therapist, hours, time off, past, free.
 function bookingError(code, field = 'time') {
-  const message = strings.errors.booking[code] ?? strings.errors.send
+  const message = lookupCode(strings.errors.booking, code) ?? strings.errors.send
   return Object.assign(new Error(message), { code, status: 409, fieldErrors: { [field]: message } })
 }
 
@@ -140,6 +157,8 @@ for (const t of ['demo-t1', 'demo-t2']) {
   }
 }
 const demoTimeOff = []
+// Seeded after the hours exist so seed dates can skip days without hours.
+const appointments = seedAppointments()
 
 // Mirrors the database rules so the demo behaves like live (migrations 0700 + 0750).
 function demoError(code, dbMessage) {
