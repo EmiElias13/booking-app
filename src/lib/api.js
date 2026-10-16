@@ -79,3 +79,59 @@ export async function updateAppointment(id, patch) {
   }
   return live.updateAppointment(id, patch)
 }
+
+export async function listStaff() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listStaff()
+  }
+  return live.listStaff()
+}
+
+export async function updateStaff(id, patch) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).updateStaff(id, patch)
+  }
+  return live.updateStaff(id, patch)
+}
+
+export async function listStaffHours() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listStaffHours()
+  }
+  return live.listStaffHours()
+}
+
+export async function addStaffHours(row) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).addStaffHours(row)
+  }
+  return live.addStaffHours(row)
+}
+
+export async function deleteStaffHours(id) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).deleteStaffHours(id)
+  }
+  return live.deleteStaffHours(id)
+}
+
+export async function listTimeOff() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listTimeOff()
+  }
+  return live.listTimeOff()
+}
+
+export async function addTimeOff(row) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).addTimeOff(row)
+  }
+  return live.addTimeOff(row)
+}
+
+export async function deleteTimeOff(id) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).deleteTimeOff(id)
+  }
+  return live.deleteTimeOff(id)
+}

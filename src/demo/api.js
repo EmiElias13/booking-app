@@ -120,3 +120,49 @@ export async function updateAppointment(id, { status, staffNote = '' }) {
   appointments[index] = { ...appointments[index], status, staffNote }
   return appointments[index]
 }
+
+// ---------- Team (demo, in memory) ----------
+const demoStaff = [
+  { id: 'demo-admin', role: 'admin', displayName: 'Administración', active: true, sortOrder: 0 },
+  { id: 'demo-t1', role: 'therapist', displayName: 'Ana Fisio', active: true, sortOrder: 1 },
+  { id: 'demo-t2', role: 'therapist', displayName: 'Luis Fisio', active: true, sortOrder: 2 },
+  { id: 'demo-desk', role: 'front_desk', displayName: 'Recepción', active: true, sortOrder: 0 },
+]
+const demoHours = []
+for (const t of ['demo-t1', 'demo-t2']) {
+  for (let weekday = 1; weekday <= 6; weekday += 1) {
+    demoHours.push({ id: crypto.randomUUID(), staffId: t, weekday, start: '08:00', end: '20:00' })
+  }
+}
+const demoTimeOff = []
+
+export async function listStaff() {
+  return demoStaff.map((s) => ({ ...s }))
+}
+export async function updateStaff(id, patch) {
+  const s = demoStaff.find((x) => x.id === id)
+  Object.assign(s, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)))
+  return { ...s }
+}
+export async function listStaffHours() {
+  return demoHours.map((h) => ({ ...h }))
+}
+export async function addStaffHours(row) {
+  const h = { id: crypto.randomUUID(), ...row }
+  demoHours.push(h)
+  return { ...h }
+}
+export async function deleteStaffHours(id) {
+  demoHours.splice(demoHours.findIndex((h) => h.id === id), 1)
+}
+export async function listTimeOff() {
+  return demoTimeOff.map((o) => ({ ...o }))
+}
+export async function addTimeOff(row) {
+  const o = { id: crypto.randomUUID(), reason: '', ...row }
+  demoTimeOff.push(o)
+  return { ...o }
+}
+export async function deleteTimeOff(id) {
+  demoTimeOff.splice(demoTimeOff.findIndex((o) => o.id === id), 1)
+}
