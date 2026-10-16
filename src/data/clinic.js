@@ -1,7 +1,6 @@
 import { config } from '../config/clinic.config.js'
 
 export const SERVICES = config.services
-export const TIME_SLOTS = config.timeSlots
 
 // Today's date (YYYY-MM-DD) in the clinic's timezone. Fallback only: the live
 // app prefers the server's clinic_today (see store/appointments.jsx).

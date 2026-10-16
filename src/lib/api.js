@@ -45,11 +45,18 @@ export async function getClinicToday() {
   return live.getClinicToday()
 }
 
-export async function listTakenSlots(from, to) {
+export async function listTherapists() {
   if (import.meta.env.VITE_DEMO === 'true') {
-    return (await import('../demo/api.js')).listTakenSlots(from, to)
+    return (await import('../demo/api.js')).listTherapists()
   }
-  return live.listTakenSlots(from, to)
+  return live.listTherapists()
+}
+
+export async function listAvailableSlots(staffId, from, to) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listAvailableSlots(staffId, from, to)
+  }
+  return live.listAvailableSlots(staffId, from, to)
 }
 
 export async function getStaffMembership(userId) {

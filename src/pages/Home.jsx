@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { SERVICES, TIME_SLOTS, clinicTimeHHMM, formatDate, serviceLabel } from '../data/clinic.js'
+import { SERVICES, clinicTimeHHMM, formatDate, serviceLabel } from '../data/clinic.js'
 import { config } from '../config/clinic.config.js'
 import { strings, t } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
+import { isSlotRejected } from '../store/bookingLogic.js'
 
 function addDaysISO(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -21,7 +22,11 @@ const emptyForm = {
 }
 
 export default function Home() {
-  const { takenSlots: takenByDate, myRequests: sessionRequests, apiError, requestSlot, clinicToday } = useAppointments()
+  const {
+    myRequests: sessionRequests, apiError, requestSlot, clinicToday, loading,
+    therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+    therapistsError, slotsError, retrySlots, refresh,
+  } = useAppointments()
   const [form, setForm] = useState(emptyForm)
   const [date, setDate] = useState(clinicToday)
   const [time, setTime] = useState('')
@@ -31,22 +36,24 @@ export default function Home() {
 
   const pickedByHand = useRef(false)
 
-  // Today, slots that have already started can't be booked (the server rejects them too).
+  // The server already drops started slots; this keeps an open tab from offering them later in the day.
   const [nowHHMM, setNowHHMM] = useState(clinicTimeHHMM)
   useEffect(() => {
     const id = setInterval(() => setNowHHMM(clinicTimeHHMM()), 60_000)
     return () => clearInterval(id)
   }, [])
 
-  // First day within 14 days (from the clinic's today) with an open slot, or null.
+  const freeOn = (day) =>
+    (availableSlots.get(day) ?? []).filter((slot) => !(day === clinicToday && slot <= nowHHMM))
+
+  // First day within 14 days (from the clinic's today) with a free slot for this therapist, or null.
   const firstOpenDay = useMemo(() => {
     for (let i = 0; i < 14; i++) {
       const day = addDaysISO(clinicToday, i)
-      const taken = takenByDate.get(day) ?? new Set()
-      if (TIME_SLOTS.some((slot) => !taken.has(slot) && !(i === 0 && slot <= nowHHMM))) return day
+      if ((availableSlots.get(day) ?? []).some((slot) => !(i === 0 && slot <= nowHHMM))) return day
     }
     return null
-  }, [clinicToday, takenByDate, nowHHMM])
+  }, [clinicToday, availableSlots, nowHHMM])
 
   // Auto-pick on load and when today runs out; never override a hand-picked date.
   useEffect(() => {
@@ -58,8 +65,16 @@ export default function Home() {
   }, [firstOpenDay, clinicToday, date])
   const jumpedPastToday = !pickedByHand.current && firstOpenDay && firstOpenDay !== clinicToday && date === firstOpenDay
 
-  const takenSlots = useMemo(() => takenByDate.get(date) ?? new Set(), [takenByDate, date])
-  const isPast = (slot) => date === clinicToday && slot <= nowHHMM
+  // Therapist dropped by the store (deactivated): clear the time and let the date auto-pick again.
+  useEffect(() => {
+    if (!therapistId) {
+      pickedByHand.current = false
+      setTime('')
+    }
+  }, [therapistId])
+
+  const daySlots = freeOn(date)
+  const therapist = therapists.find((x) => x.id === therapistId) ?? null
   useEffect(() => {
     if (time && date === clinicToday && time <= nowHHMM) setTime('')
   }, [time, date, clinicToday, nowHHMM])
@@ -81,6 +96,7 @@ export default function Home() {
     const nextErrors = {}
     if (!form.clientName.trim()) nextErrors.clientName = strings.errors.name
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) nextErrors.email = strings.errors.email
+    if (!therapistId) nextErrors.therapist = strings.errors.therapist
     if (!date) nextErrors.date = strings.errors.date
     if (!time) nextErrors.time = strings.errors.time
     return nextErrors
@@ -100,15 +116,18 @@ export default function Home() {
         phone: form.phone.trim(),
         service: form.service,
         notes: form.notes.trim(),
+        staffId: therapistId,
         date,
         time,
       })
 
-      setConfirmation(appointment)
+      setConfirmation({ ...appointment, therapistName: therapist?.displayName ?? '' })
       setForm((current) => ({ ...emptyForm, email: current.email }))
       setTime('')
     } catch (error) {
       setConfirmation(null)
+      // The store refetches slots; drop the rejected time so it can't be resubmitted.
+      if (isSlotRejected(error)) setTime('')
       setErrors(
         Object.keys(error.fieldErrors ?? {}).length > 0
           ? error.fieldErrors
@@ -138,6 +157,7 @@ export default function Home() {
           {t(strings.home.success, {
             date: formatDate(confirmation.date),
             time: confirmation.time,
+            therapist: confirmation.therapistName,
             service: serviceLabel(confirmation.service),
             email: confirmation.email,
           })}
@@ -198,6 +218,32 @@ export default function Home() {
             </select>
           </label>
 
+          <label className={`field${errors.therapist ? ' error-shake' : ''}`}>
+            <span>{strings.home.therapist}</span>
+            <select
+              value={therapistId}
+              onChange={(event) => {
+                pickedByHand.current = false
+                selectTherapist(event.target.value)
+                setTime('')
+                setErrors((current) => ({ ...current, therapist: undefined, time: undefined }))
+              }}
+              disabled={therapists.length === 0}
+              aria-invalid={Boolean(errors.therapist)}
+              required
+            >
+              <option value="" disabled>
+                {strings.home.therapistPh}
+              </option>
+              {therapists.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.displayName}
+                </option>
+              ))}
+            </select>
+            {errors.therapist && <small className="error">{errors.therapist}</small>}
+          </label>
+
           <label className={`field${errors.date ? ' error-shake' : ''}`}>
             <span>{strings.home.date}</span>
             <input
@@ -219,8 +265,33 @@ export default function Home() {
           <legend>
             {strings.home.slots} {date && <em>· {formatDate(date)}</em>}
           </legend>
-          {jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
-          {!firstOpenDay && (
+          {therapistsError && therapists.length === 0 && (
+            <div className="muted" role="alert">
+              <p>{strings.home.loadError}</p>
+              <button type="button" className="btn btn-ghost" onClick={refresh}>
+                {strings.home.retry}
+              </button>
+            </div>
+          )}
+          {therapistId && slotsError && (
+            <div className="muted" role="alert">
+              <p>{strings.home.loadError}</p>
+              <button type="button" className="btn btn-ghost" onClick={retrySlots}>
+                {strings.home.retry}
+              </button>
+            </div>
+          )}
+          {!loading && !therapistsError && therapists.length === 0 && (
+            <div className="muted">
+              <p>{strings.home.noTherapists}</p>
+              {contactValues.map((value) => (
+                <p key={value}>{value}</p>
+              ))}
+            </div>
+          )}
+          {therapists.length > 0 && !therapistId && <p className="muted">{strings.home.pickTherapistFirst}</p>}
+          {therapistId && jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
+          {therapistId && !slotsLoading && !slotsError && !firstOpenDay && (
             <div className="muted">
               {contactValues.length ? (
                 <>
@@ -235,26 +306,23 @@ export default function Home() {
             </div>
           )}
           <div className="slot-grid" key={date}>
-            {TIME_SLOTS.map((slot) => {
-              const taken = takenSlots.has(slot)
-              if (isPast(slot)) return null
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  className={`slot${time === slot ? ' slot-selected' : ''}`}
-                  disabled={taken}
-                  onClick={() => {
-                    setTime(slot)
-                    setErrors((current) => ({ ...current, time: undefined }))
-                  }}
-                >
-                  <span className="slot-label">{slot}</span>
-                  {taken && <small>{strings.home.slotTaken}</small>}
-                </button>
-              )
-            })}
+            {daySlots.map((slot) => (
+              <button
+                key={slot}
+                type="button"
+                className={`slot${time === slot ? ' slot-selected' : ''}`}
+                onClick={() => {
+                  setTime(slot)
+                  setErrors((current) => ({ ...current, time: undefined }))
+                }}
+              >
+                <span className="slot-label">{slot}</span>
+              </button>
+            ))}
           </div>
+          {therapistId && !slotsLoading && !slotsError && firstOpenDay && daySlots.length === 0 && (
+            <p className="muted">{strings.home.dayClosed}</p>
+          )}
           {errors.time && <small className="error">{errors.time}</small>}
         </fieldset>
 
