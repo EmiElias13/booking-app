@@ -629,6 +629,32 @@ textarea {
   color: var(--danger);
 }
 
+.status-review {
+  background: #fdf1d8;
+  color: var(--warning);
+  border: 1px solid currentColor;
+}
+
+.approval-badges {
+  display: flex;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.approval-review {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+
+.approval-therapist {
+  margin-top: 12px;
+  max-width: 320px;
+}
+
 .request-list,
 .approval-list {
   list-style: none;
