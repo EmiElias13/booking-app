@@ -139,6 +139,7 @@ function applyMiddleware(role, method, path) {
 }
 
 // request_appointment raises P0001 with one of these codes as the message.
+// throwQueryError is exported for tests only (src/lib/bookingErrors.test.js).
 const BOOKING_ERRORS = {
   slot_taken: { field: 'time', status: 409 },
   past_slot: { field: 'time', status: 409 },
@@ -150,7 +151,7 @@ const BOOKING_ERRORS = {
   unknown_clinic: { field: 'form', status: 422 },
 }
 
-function throwQueryError(body, status, role) {
+export function throwQueryError(body, status, role) {
   const code = body?.code
   const booking = code === 'P0001' ? BOOKING_ERRORS[body?.message] : null
   if (booking) {
