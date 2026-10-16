@@ -208,6 +208,9 @@ export async function deleteStaffHours(id) {
   const i = demoHours.findIndex((h) => h.id === id)
   if (i >= 0) demoHours.splice(i, 1)
 }
+export async function getSlotMinutes() {
+  return 60
+}
 export async function listTimeOff() {
   return demoTimeOff.map((o) => ({ ...o }))
 }

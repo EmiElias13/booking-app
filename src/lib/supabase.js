@@ -19,14 +19,13 @@ const ALLOWED = {
     { method: 'POST', pathPrefix: '/rpc/list_therapists' },
     { method: 'POST', pathPrefix: '/rpc/get_available_slots' },
     { method: 'POST', pathPrefix: '/rpc/request_appointment' },
-    // Old direct insert; unused by this app, removed with the 0800 cutover.
-    { method: 'POST', pathPrefix: '/appointments' },
   ],
   staff: [
     { method: 'GET', pathPrefix: '/appointments' },
     { method: 'PATCH', pathPrefix: '/appointments' },
     { method: 'GET', pathPrefix: '/staff' },
     { method: 'PATCH', pathPrefix: '/staff?' },
+    { method: 'GET', pathPrefix: '/clinics?' },
     { method: 'GET', pathPrefix: '/staff_hours' },
     { method: 'POST', pathPrefix: '/staff_hours' },
     { method: 'DELETE', pathPrefix: '/staff_hours?' },
@@ -127,7 +126,8 @@ async function getStaffToken() {
   return session?.access_token ?? null
 }
 
-function applyMiddleware(role, method, path) {
+// Exported for tests only.
+export function applyMiddleware(role, method, path) {
   const allowed = ALLOWED[role]?.some(
     (rule) => method === rule.method && path.startsWith(rule.pathPrefix),
   )
@@ -405,6 +405,13 @@ export async function addStaffHours(rows) {
 
 export async function deleteStaffHours(id) {
   await rest('staff', `/staff_hours?id=eq.${encodeURIComponent(id)}&clinic_id=eq.${clinicId}`, { method: 'DELETE' })
+}
+
+// Session length (clinics.slot_minutes). Staff can read their own clinic row (RLS "Staff read their clinics").
+export async function getSlotMinutes() {
+  const rows = await rest('staff', `/clinics?id=eq.${clinicId}&select=slot_minutes`)
+  const minutes = Number(rows?.[0]?.slot_minutes)
+  return Number.isInteger(minutes) && minutes > 0 ? minutes : undefined
 }
 
 export async function listTimeOff() {
