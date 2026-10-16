@@ -22,6 +22,8 @@ const baseStrings = {
     todayFull: 'Hoy ya no hay horarios. Te mostramos el siguiente día disponible.',
     noSlots: 'No hay horarios disponibles en los próximos 14 días. Contáctanos para agendar:',
     noSlotsNoContact: 'Intenta otra fecha o vuelve más tarde',
+    loadError: 'No pudimos cargar los horarios. Revisa tu conexión e inténtalo de nuevo.',
+    retry: 'Reintentar',
     myRequests: 'Tus solicitudes', clinicNote: 'Mensaje de la clínica:',
   },
   errors: {

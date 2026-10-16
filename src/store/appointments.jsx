@@ -11,6 +11,7 @@ import {
 import { strings } from '../i18n/strings.js'
 import { todayISO } from '../data/clinic.js'
 import { useAuth } from './auth.jsx'
+import { createLatestGate, keepTherapist } from './bookingLogic.js'
 
 const AppointmentsContext = createContext(null)
 
@@ -50,6 +51,11 @@ export function AppointmentsProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [clinicToday, setClinicToday] = useState(() => todayISO())
   const [apiError, setApiError] = useState(null)
+  // Guest-side network failures, shown in place of the picker / slots with a retry.
+  const [therapistsError, setTherapistsError] = useState(false)
+  const [slotsError, setSlotsError] = useState(false)
+  const staffIdRef = useRef('')
+  const slotsGate = useRef(createLatestGate()).current
 
   const refresh = useCallback(async () => {
     if (!isAppConfigured) {
@@ -64,39 +70,56 @@ export function AppointmentsProvider({ children }) {
       } else {
         const today = await loadClinicToday()
         setClinicToday(today)
-        setTherapists(await listTherapists())
+        const list = await listTherapists()
+        setTherapists(list)
+        setTherapistsError(false)
+        // Selected therapist was deactivated: drop the selection (Home resets date and time).
+        if (staffIdRef.current && !keepTherapist(list, staffIdRef.current)) {
+          staffIdRef.current = ''
+          slotsGate.next()
+          setTherapistId('')
+          setAvailable([])
+          setSlotsError(false)
+          setSlotsLoading(false)
+        }
       }
       setApiError(null)
     } catch (error) {
-      setApiError(isStaff && error.status === 401 ? strings.errors.signInRequired : strings.errors.reach)
+      if (isStaff) setApiError(error.status === 401 ? strings.errors.signInRequired : strings.errors.reach)
+      else setTherapistsError(true)
     } finally {
       setLoading(false)
     }
-  }, [isStaff])
+  }, [isStaff, slotsGate])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  const staffIdRef = useRef('')
   // Guests: free slots of the chosen therapist (none until one is chosen).
+  // Only the latest request may update state, so a slow response for a previous therapist is ignored.
   const loadSlots = useCallback(async (staffId) => {
+    const requestId = slotsGate.next()
+    setSlotsError(false)
     if (!staffId) {
       setAvailable([])
+      setSlotsLoading(false)
       return
     }
     setSlotsLoading(true)
     try {
       const today = await loadClinicToday()
       const slots = await listAvailableSlots(staffId, ...slotRange(today))
-      setAvailable((current) => (staffIdRef.current === staffId ? slots : current))
-      setApiError(null)
+      if (!slotsGate.isCurrent(requestId)) return
+      setAvailable(slots)
     } catch {
-      setApiError(strings.errors.reach)
+      if (slotsGate.isCurrent(requestId)) setSlotsError(true)
     } finally {
-      setSlotsLoading(false)
+      if (slotsGate.isCurrent(requestId)) setSlotsLoading(false)
     }
-  }, [])
+  }, [slotsGate])
+
+  const retrySlots = useCallback(() => loadSlots(staffIdRef.current), [loadSlots])
 
   const selectTherapist = useCallback(
     (staffId) => {
@@ -138,9 +161,11 @@ export function AppointmentsProvider({ children }) {
     () => ({
       appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
       therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+      therapistsError, slotsError, retrySlots,
     }),
     [appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
-      therapists, therapistId, selectTherapist, availableSlots, slotsLoading],
+      therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+      therapistsError, slotsError, retrySlots],
   )
 
   return <AppointmentsContext.Provider value={value}>{children}</AppointmentsContext.Provider>

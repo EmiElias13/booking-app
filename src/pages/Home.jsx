@@ -3,6 +3,7 @@ import { SERVICES, clinicTimeHHMM, formatDate, serviceLabel } from '../data/clin
 import { config } from '../config/clinic.config.js'
 import { strings, t } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
+import { isSlotRejected } from '../store/bookingLogic.js'
 
 function addDaysISO(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -24,6 +25,7 @@ export default function Home() {
   const {
     myRequests: sessionRequests, apiError, requestSlot, clinicToday, loading,
     therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+    therapistsError, slotsError, retrySlots, refresh,
   } = useAppointments()
   const [form, setForm] = useState(emptyForm)
   const [date, setDate] = useState(clinicToday)
@@ -62,6 +64,14 @@ export default function Home() {
     }
   }, [firstOpenDay, clinicToday, date])
   const jumpedPastToday = !pickedByHand.current && firstOpenDay && firstOpenDay !== clinicToday && date === firstOpenDay
+
+  // Therapist dropped by the store (deactivated): clear the time and let the date auto-pick again.
+  useEffect(() => {
+    if (!therapistId) {
+      pickedByHand.current = false
+      setTime('')
+    }
+  }, [therapistId])
 
   const daySlots = freeOn(date)
   const therapist = therapists.find((x) => x.id === therapistId) ?? null
@@ -116,6 +126,8 @@ export default function Home() {
       setTime('')
     } catch (error) {
       setConfirmation(null)
+      // The store refetches slots; drop the rejected time so it can't be resubmitted.
+      if (isSlotRejected(error)) setTime('')
       setErrors(
         Object.keys(error.fieldErrors ?? {}).length > 0
           ? error.fieldErrors
@@ -253,7 +265,23 @@ export default function Home() {
           <legend>
             {strings.home.slots} {date && <em>· {formatDate(date)}</em>}
           </legend>
-          {!loading && therapists.length === 0 && (
+          {therapistsError && therapists.length === 0 && (
+            <div className="muted" role="alert">
+              <p>{strings.home.loadError}</p>
+              <button type="button" className="btn btn-ghost" onClick={refresh}>
+                {strings.home.retry}
+              </button>
+            </div>
+          )}
+          {therapistId && slotsError && (
+            <div className="muted" role="alert">
+              <p>{strings.home.loadError}</p>
+              <button type="button" className="btn btn-ghost" onClick={retrySlots}>
+                {strings.home.retry}
+              </button>
+            </div>
+          )}
+          {!loading && !therapistsError && therapists.length === 0 && (
             <div className="muted">
               <p>{strings.home.noTherapists}</p>
               {contactValues.map((value) => (
@@ -263,7 +291,7 @@ export default function Home() {
           )}
           {therapists.length > 0 && !therapistId && <p className="muted">{strings.home.pickTherapistFirst}</p>}
           {therapistId && jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
-          {therapistId && !slotsLoading && !firstOpenDay && (
+          {therapistId && !slotsLoading && !slotsError && !firstOpenDay && (
             <div className="muted">
               {contactValues.length ? (
                 <>
@@ -292,7 +320,7 @@ export default function Home() {
               </button>
             ))}
           </div>
-          {therapistId && !slotsLoading && firstOpenDay && daySlots.length === 0 && (
+          {therapistId && !slotsLoading && !slotsError && firstOpenDay && daySlots.length === 0 && (
             <p className="muted">{strings.home.dayClosed}</p>
           )}
           {errors.time && <small className="error">{errors.time}</small>}
