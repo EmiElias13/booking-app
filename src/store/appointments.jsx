@@ -1,19 +1,21 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createAppointment,
   getClinicToday,
   isAppConfigured,
   listAppointments,
-  listTakenSlots,
+  listAvailableSlots,
+  listTherapists,
   updateAppointment,
 } from '../lib/api.js'
 import { strings } from '../i18n/strings.js'
 import { todayISO } from '../data/clinic.js'
 import { useAuth } from './auth.jsx'
+import { createLatestGate, keepTherapist } from './bookingLogic.js'
 
 const AppointmentsContext = createContext(null)
 
-function takenRange(today) {
+function slotRange(today) {
   const to = new Date(`${today}T00:00:00Z`)
   to.setUTCDate(to.getUTCDate() + 90)
   return [today, to.toISOString().slice(0, 10)]
@@ -27,23 +29,33 @@ function loadClinicToday() {
   return clinicTodayPromise
 }
 
-function toTakenMap(slots) {
+// date -> sorted array of free times
+function toSlotMap(slots) {
   const map = new Map()
   for (const { date, time } of slots) {
-    if (!map.has(date)) map.set(date, new Set())
-    map.get(date).add(time)
+    if (!map.has(date)) map.set(date, [])
+    map.get(date).push(time)
   }
+  for (const times of map.values()) times.sort()
   return map
 }
 
 export function AppointmentsProvider({ children }) {
   const { isStaff } = useAuth()
   const [appointments, setAppointments] = useState([])
-  const [guestTaken, setGuestTaken] = useState([])
+  const [therapists, setTherapists] = useState([])
+  const [therapistId, setTherapistId] = useState('')
+  const [available, setAvailable] = useState([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
   const [myRequests, setMyRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [clinicToday, setClinicToday] = useState(() => todayISO())
   const [apiError, setApiError] = useState(null)
+  // Guest-side network failures, shown in place of the picker / slots with a retry.
+  const [therapistsError, setTherapistsError] = useState(false)
+  const [slotsError, setSlotsError] = useState(false)
+  const staffIdRef = useRef('')
+  const slotsGate = useRef(createLatestGate()).current
 
   const refresh = useCallback(async () => {
     if (!isAppConfigured) {
@@ -58,32 +70,82 @@ export function AppointmentsProvider({ children }) {
       } else {
         const today = await loadClinicToday()
         setClinicToday(today)
-        setGuestTaken(await listTakenSlots(...takenRange(today)))
+        const list = await listTherapists()
+        setTherapists(list)
+        setTherapistsError(false)
+        // Selected therapist was deactivated: drop the selection (Home resets date and time).
+        if (staffIdRef.current && !keepTherapist(list, staffIdRef.current)) {
+          staffIdRef.current = ''
+          slotsGate.next()
+          setTherapistId('')
+          setAvailable([])
+          setSlotsError(false)
+          setSlotsLoading(false)
+        }
       }
       setApiError(null)
     } catch (error) {
-      setApiError(isStaff && error.status === 401 ? strings.errors.signInRequired : strings.errors.reach)
+      if (isStaff) setApiError(error.status === 401 ? strings.errors.signInRequired : strings.errors.reach)
+      else setTherapistsError(true)
     } finally {
       setLoading(false)
     }
-  }, [isStaff])
+  }, [isStaff, slotsGate])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
+  // Guests: free slots of the chosen therapist (none until one is chosen).
+  // Only the latest request may update state, so a slow response for a previous therapist is ignored.
+  const loadSlots = useCallback(async (staffId) => {
+    const requestId = slotsGate.next()
+    setSlotsError(false)
+    if (!staffId) {
+      setAvailable([])
+      setSlotsLoading(false)
+      return
+    }
+    setSlotsLoading(true)
+    try {
+      const today = await loadClinicToday()
+      const slots = await listAvailableSlots(staffId, ...slotRange(today))
+      if (!slotsGate.isCurrent(requestId)) return
+      setAvailable(slots)
+    } catch {
+      if (slotsGate.isCurrent(requestId)) setSlotsError(true)
+    } finally {
+      if (slotsGate.isCurrent(requestId)) setSlotsLoading(false)
+    }
+  }, [slotsGate])
+
+  const retrySlots = useCallback(() => loadSlots(staffIdRef.current), [loadSlots])
+
+  const selectTherapist = useCallback(
+    (staffId) => {
+      staffIdRef.current = staffId
+      setTherapistId(staffId)
+      setAvailable([])
+      loadSlots(staffId)
+    },
+    [loadSlots],
+  )
+
   const requestSlot = useCallback(async (request) => {
     try {
       const appointment = await createAppointment(request)
       setMyRequests((current) => [...current, appointment])
-      setGuestTaken((current) => [...current, { date: appointment.date, time: appointment.time }])
+      setAvailable((current) => current.filter((s) => !(s.date === appointment.date && s.time === appointment.time)))
       return appointment
     } catch (error) {
-      // Slot taken: re-fetch so the grid shows the new state.
-      if (error.status === 409) refresh()
+      // Slot no longer bookable / therapist gone: re-fetch so the picker shows the new state.
+      if (error.status === 409) {
+        if (error.code === 'inactive_staff') refresh()
+        else loadSlots(request.staffId)
+      }
       throw error
     }
-  }, [refresh])
+  }, [refresh, loadSlots])
 
   const decide = useCallback(async (id, status, staffNote = '') => {
     const updated = await updateAppointment(id, { status, staffNote })
@@ -93,20 +155,17 @@ export function AppointmentsProvider({ children }) {
     return updated
   }, [])
 
-  // date -> Set of taken times; staff derive it from their rows, guests from the RPC.
-  const takenSlots = useMemo(
-    () =>
-      toTakenMap(
-        isStaff
-          ? appointments.filter((a) => a.status !== 'declined').map((a) => ({ date: a.date, time: a.time }))
-          : guestTaken,
-      ),
-    [isStaff, appointments, guestTaken],
-  )
+  const availableSlots = useMemo(() => toSlotMap(available), [available])
 
   const value = useMemo(
-    () => ({ appointments, takenSlots, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide }),
-    [appointments, takenSlots, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide],
+    () => ({
+      appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
+      therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+      therapistsError, slotsError, retrySlots,
+    }),
+    [appointments, myRequests, clinicToday, loading, apiError, refresh, requestSlot, decide,
+      therapists, therapistId, selectTherapist, availableSlots, slotsLoading,
+      therapistsError, slotsError, retrySlots],
   )
 
   return <AppointmentsContext.Provider value={value}>{children}</AppointmentsContext.Provider>

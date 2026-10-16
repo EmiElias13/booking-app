@@ -15,6 +15,10 @@ const ALLOWED = {
   guest: [
     { method: 'POST', pathPrefix: '/rpc/get_taken_slots' },
     { method: 'POST', pathPrefix: '/rpc/clinic_today' },
+    { method: 'POST', pathPrefix: '/rpc/list_therapists' },
+    { method: 'POST', pathPrefix: '/rpc/get_available_slots' },
+    { method: 'POST', pathPrefix: '/rpc/request_appointment' },
+    // Old direct insert; unused by this app, removed with the 0800 cutover.
     { method: 'POST', pathPrefix: '/appointments' },
   ],
   staff: [
@@ -134,8 +138,29 @@ function applyMiddleware(role, method, path) {
   }
 }
 
+// request_appointment raises P0001 with one of these codes as the message.
+const BOOKING_ERRORS = {
+  slot_taken: { field: 'time', status: 409 },
+  past_slot: { field: 'time', status: 409 },
+  outside_hours: { field: 'time', status: 409 },
+  time_off: { field: 'time', status: 409 },
+  too_far: { field: 'date', status: 422 },
+  bad_time: { field: 'time', status: 422 },
+  inactive_staff: { field: 'therapist', status: 409 },
+  unknown_clinic: { field: 'form', status: 422 },
+}
+
 function throwQueryError(body, status, role) {
   const code = body?.code
+  const booking = code === 'P0001' ? BOOKING_ERRORS[body?.message] : null
+  if (booking) {
+    const message = strings.errors.booking[body.message] ?? strings.errors.send
+    const error = new Error(message)
+    error.status = booking.status
+    error.code = body.message
+    error.fieldErrors = { [booking.field]: message }
+    throw error
+  }
   const fallback = role === 'staff' ? strings.errors.update : strings.errors.send
   // PostgREST answers anon RLS/privilege failures (42501) with 401; for guests that is a send error.
   const message =
@@ -236,23 +261,38 @@ export async function listTakenSlots(from, to) {
   return (rows ?? []).map((row) => ({ date: row.slot_date, time: row.slot_time }))
 }
 
-export async function createAppointment(request) {
-  // Anon can't read the row back, so the client owns the id.
-  const id = crypto.randomUUID()
-  await rest('guest', '/appointments', {
+// Active therapists of this clinic: id + display name only.
+export async function listTherapists() {
+  const rows = await rest('guest', '/rpc/list_therapists', {
     method: 'POST',
-    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ p_clinic_id: clinicId }),
+  })
+  return (rows ?? []).map((row) => ({ id: row.id, displayName: row.display_name ?? '' }))
+}
+
+// Free slots for one therapist, generated server-side from their hours (past/taken/time off removed).
+export async function listAvailableSlots(staffId, from, to) {
+  const rows = await rest('guest', '/rpc/get_available_slots', {
+    method: 'POST',
+    body: JSON.stringify({ p_clinic_id: clinicId, p_staff_id: staffId, p_from: from, p_to: to }),
+  })
+  return (rows ?? []).map((row) => ({ date: row.slot_date, time: row.slot_time }))
+}
+
+export async function createAppointment(request) {
+  // All checks (therapist, hours, time off, past, free) happen in request_appointment.
+  const id = await rest('guest', '/rpc/request_appointment', {
+    method: 'POST',
     body: JSON.stringify({
-      id,
-      clinic_id: clinicId,
-      client_name: request.clientName,
-      email: request.email,
-      phone: request.phone ?? '',
-      service: request.service,
-      notes: request.notes ?? '',
-      slot_date: request.date,
-      slot_time: request.time,
-      // status / staff_note / staff_id are not in anon's column grant: DB defaults apply.
+      p_clinic_id: clinicId,
+      p_staff_id: request.staffId,
+      p_slot_date: request.date,
+      p_slot_time: request.time,
+      p_client_name: request.clientName,
+      p_email: request.email,
+      p_phone: request.phone ?? '',
+      p_service: request.service,
+      p_notes: request.notes ?? '',
     }),
   })
 
@@ -267,7 +307,7 @@ export async function createAppointment(request) {
     time: request.time,
     status: 'pending',
     staffNote: '',
-    staffId: null,
+    staffId: request.staffId,
     requestedAt: new Date().toISOString(),
   }
 }
