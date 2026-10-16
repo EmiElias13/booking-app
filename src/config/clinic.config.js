@@ -6,6 +6,7 @@ const defaults = {
   logo: '',
   logoAlt: '',
   locale: 'es-MX',
+  timezone: 'America/Tijuana',
   themeColor: '#6b3a96',
   accentSoft: '#f3eaf8',
   accentDeep: '#4e2870',

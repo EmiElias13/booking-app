@@ -11,9 +11,9 @@
 -- Assumed names: clinics.plan, clinics.staff_limit (NULL = plan default), clinic_staff_limit(uuid),
 --   has_role(uuid, text[]), appointments.staff_id.
 -- Sections: [P] ported 15  [G] guest  [R] RPC  [L] limits  [O] role values  [H] has_role
---           [M] staff management  [T] therapist  [F] front desk  [S] staff_id  [D] deletes  [V] verifications
+--           [M] staff management  [T] therapist  [F] front desk  [S] staff_id  [D] deletes  [N] no past slots today  [V] verifications
 begin;
-select plan(108);
+select plan(113);
 
 -- ============ fixtures (service role) ============
 insert into auth.users (id, email) values
@@ -93,6 +93,12 @@ set local role anon;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 select throws_ok($$select 1 from public.appointments$$, '42501', null, 'P1 anon cannot read appointments');
 select throws_ok($$select 1 from public.clinics$$, '42501', null, 'P2 anon cannot read clinics');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time, staff_id) values ('aaaaaaaa-0000-4000-8000-00000000000c','x','x@example.com','1','x',current_date + 7,'10:00','aaaaaaaa-0000-4000-8000-000000000002')$$, '42501', null, 'P16 anon insert with staff_id set is rejected');
+select ok(not has_function_privilege('anon','public.enforce_staff_limit()','execute') and not has_function_privilege('authenticated','public.enforce_staff_limit()','execute'), 'P17 anon/authenticated cannot execute enforce_staff_limit');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'00:00')$$, '42501', null, 'N1 anon insert for today at a past time is rejected');
+-- N2 can only fail during the clinic's last minute of the day (23:59).
+select lives_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'23:59')$$, 'N2 anon insert for a later time today succeeds');
+select lives_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c') + 1,'08:00')$$, 'N3 anon insert for tomorrow succeeds');
 select ok((select count(*) = 2 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30))
       and not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30) where slot_time='10:00')
       and (select count(*) = 0 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+365)),
