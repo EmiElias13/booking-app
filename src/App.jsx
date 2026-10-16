@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Approvals from './pages/Approvals.jsx'
 import Login from './pages/Login.jsx'
+import Team from './pages/Team.jsx'
 import RequireStaff from './middleware/RequireStaff.jsx'
 import Monogram from './components/Monogram.jsx'
 import { config } from './config/clinic.config.js'
@@ -11,7 +12,7 @@ import { useAuth } from './store/auth.jsx'
 
 export default function App() {
   const { appointments } = useAppointments()
-  const { isStaff, signOut } = useAuth()
+  const { isStaff, staffRole, signOut } = useAuth()
   const pendingCount = appointments.filter((appointment) => appointment.status === 'pending').length
   const logoSrc = config.logo
     ? `${import.meta.env.BASE_URL}${config.logo.replace(/^\//, '')}`
@@ -47,6 +48,7 @@ export default function App() {
                   </span>
                 )}
               </NavLink>
+              {staffRole === 'admin' && <NavLink to="/team">{strings.nav.team}</NavLink>}
 
               <button type="button" onClick={signOut}>
                 {strings.nav.signOut}
@@ -70,6 +72,14 @@ export default function App() {
             element={
               <RequireStaff>
                 <Approvals />
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="/team"
+            element={
+              <RequireStaff roles={['admin']}>
+                <Team />
               </RequireStaff>
             }
           />

@@ -21,6 +21,13 @@ const ALLOWED = {
     { method: 'GET', pathPrefix: '/appointments' },
     { method: 'PATCH', pathPrefix: '/appointments' },
     { method: 'GET', pathPrefix: '/staff' },
+    { method: 'PATCH', pathPrefix: '/staff?' },
+    { method: 'GET', pathPrefix: '/staff_hours' },
+    { method: 'POST', pathPrefix: '/staff_hours' },
+    { method: 'DELETE', pathPrefix: '/staff_hours?' },
+    { method: 'GET', pathPrefix: '/staff_time_off' },
+    { method: 'POST', pathPrefix: '/staff_time_off' },
+    { method: 'DELETE', pathPrefix: '/staff_time_off?' },
   ],
 }
 
@@ -138,6 +145,8 @@ function throwQueryError(body, status, role) {
         ? strings.errors.signInRequired
         : fallback
   const error = new Error(message)
+  error.code = code
+  error.dbMessage = body?.message ?? ''
   error.status = code === '23505' ? 409 : status
   error.fieldErrors = code === '23505' ? { time: message } : { form: message }
   throw error
@@ -155,17 +164,27 @@ async function rest(role, path, options = {}) {
     throw error
   }
 
-  const response = await fetch(`${url}/rest/v1${path}`, {
-    ...options,
-    method,
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-      ...options.headers,
-    },
-  })
+  let response
+  try {
+    response = await fetch(`${url}/rest/v1${path}`, {
+      ...options,
+      method,
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+        ...options.headers,
+      },
+    })
+  } catch {
+    // fetch only rejects on network failure (offline, DNS, CORS): never show the raw "Failed to fetch".
+    const error = new Error(strings.errors.reach)
+    error.network = true
+    error.status = 0
+    error.fieldErrors = { form: strings.errors.reach }
+    throw error
+  }
   const body = await response.json().catch(() => null)
   if (!response.ok) throwQueryError(body, response.status, role)
   return body
@@ -278,4 +297,93 @@ export async function getStaffMembership(userId) {
     `/staff?user_id=eq.${encodeURIComponent(userId)}&clinic_id=eq.${clinicId}&select=role`,
   )
   return rows?.[0]?.role ?? null
+}
+
+// ---------- Team (admin): names, active, order, weekly hours, time off. RLS: admin-only writes. ----------
+function fromStaffRow(row) {
+  return {
+    id: row.user_id,
+    role: row.role,
+    displayName: row.display_name ?? '',
+    active: row.active !== false,
+    sortOrder: row.sort_order ?? 0,
+  }
+}
+
+export async function listStaff() {
+  const rows = await rest(
+    'staff',
+    `/staff?clinic_id=eq.${clinicId}&select=user_id,role,display_name,active,sort_order&order=sort_order.asc,display_name.asc`,
+  )
+  return (rows ?? []).map(fromStaffRow)
+}
+
+export async function updateStaff(id, { displayName, active, sortOrder }) {
+  const patch = {}
+  if (displayName !== undefined) patch.display_name = displayName
+  if (active !== undefined) patch.active = active
+  if (sortOrder !== undefined) patch.sort_order = sortOrder
+  const rows = await rest('staff', `/staff?user_id=eq.${encodeURIComponent(id)}&clinic_id=eq.${clinicId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+  if (!rows?.length) throw Object.assign(new Error(strings.errors.update), { status: 403, fieldErrors: {} })
+  return fromStaffRow(rows[0])
+}
+
+export async function listStaffHours() {
+  const rows = await rest('staff', `/staff_hours?clinic_id=eq.${clinicId}&select=id,staff_id,weekday,start_time,end_time&order=weekday.asc,start_time.asc`)
+  return (rows ?? []).map((row) => ({
+    id: row.id,
+    staffId: row.staff_id,
+    weekday: row.weekday,
+    start: String(row.start_time).slice(0, 5),
+    end: String(row.end_time).slice(0, 5),
+  }))
+}
+
+// One POST with an array: PostgREST inserts it in a single statement, so all rows save or none do.
+export async function addStaffHours(rows) {
+  const saved = await rest('staff', '/staff_hours', {
+    method: 'POST',
+    body: JSON.stringify(
+      rows.map(({ staffId, weekday, start, end }) => ({
+        clinic_id: clinicId, staff_id: staffId, weekday, start_time: start, end_time: end,
+      })),
+    ),
+  })
+  return (saved ?? []).map((row) => ({
+    id: row.id,
+    staffId: row.staff_id,
+    weekday: row.weekday,
+    start: String(row.start_time).slice(0, 5),
+    end: String(row.end_time).slice(0, 5),
+  }))
+}
+
+export async function deleteStaffHours(id) {
+  await rest('staff', `/staff_hours?id=eq.${encodeURIComponent(id)}&clinic_id=eq.${clinicId}`, { method: 'DELETE' })
+}
+
+export async function listTimeOff() {
+  const rows = await rest('staff', `/staff_time_off?clinic_id=eq.${clinicId}&select=id,staff_id,start_date,end_date,reason&order=start_date.asc`)
+  return (rows ?? []).map((row) => ({
+    id: row.id,
+    staffId: row.staff_id,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    reason: row.reason ?? '',
+  }))
+}
+
+export async function addTimeOff({ staffId, startDate, endDate, reason = '' }) {
+  const rows = await rest('staff', '/staff_time_off', {
+    method: 'POST',
+    body: JSON.stringify({ clinic_id: clinicId, staff_id: staffId, start_date: startDate, end_date: endDate, reason }),
+  })
+  return { id: rows?.[0]?.id, staffId, startDate, endDate, reason }
+}
+
+export async function deleteTimeOff(id) {
+  await rest('staff', `/staff_time_off?id=eq.${encodeURIComponent(id)}&clinic_id=eq.${clinicId}`, { method: 'DELETE' })
 }

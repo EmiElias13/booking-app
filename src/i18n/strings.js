@@ -2,7 +2,7 @@ import { config } from '../config/clinic.config.js'
 
 const baseStrings = {
   meta: { title: '{name} · Agenda tu cita', logoAlt: '{name}' },
-  nav: { approvals: 'Solicitudes', signOut: 'Cerrar sesión' },
+  nav: { approvals: 'Solicitudes', team: 'Equipo', signOut: 'Cerrar sesión' },
   status: { pending: 'Pendiente', approved: 'Aprobada', declined: 'Rechazada' },
   home: {
     title: 'Solicita una cita',
@@ -53,6 +53,34 @@ const baseStrings = {
     yourNote: 'Tu mensaje:',
     loading: 'Cargando solicitudes…',
     empty: 'Aún no hay nada aquí. Las solicitudes de la página de citas aparecerán en esta lista.',
+  },
+  team: {
+    title: 'Equipo',
+    intro: 'Nombres, horarios y días libres de cada fisioterapeuta. Los pacientes solo ven el nombre.',
+    loading: 'Cargando equipo…',
+    empty: 'Aún no hay fisioterapeutas en esta clínica.',
+    name: 'Nombre visible', order: 'Orden', active: 'Activo', inactive: 'Inactivo',
+    save: 'Guardar', saved: 'Guardado',
+    hours: 'Horario semanal', noHours: 'Sin horario: no se puede agendar con este fisioterapeuta.',
+    addHours: 'Agregar horario', from: 'De', to: 'A', copyAll: 'Copiar a lun–sáb',
+    timeOff: 'Días libres', noTimeOff: 'Sin días libres próximos.',
+    addTimeOff: 'Agregar días libres', startDate: 'Desde', endDate: 'Hasta', reason: 'Motivo (solo equipo)',
+    remove: 'Quitar',
+    weekdays: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+    errors: {
+      range: 'La hora final debe ser después de la inicial.',
+      dates: 'La fecha final no puede ser antes de la inicial.',
+      save: 'No pudimos guardar. Inténtalo de nuevo.',
+      name: 'Escribe un nombre visible.',
+      pastDates: 'La fecha final no puede ser antes de hoy.',
+      overlap: 'Ese horario se cruza con otro que ya tiene este día.',
+      overlapDays: 'Ese horario se cruza con otro que ya tiene: {days}.',
+      staffLimit: 'Tu plan ya tiene el máximo de personas activas. Desactiva a alguien o cambia de plan.',
+      lastAdmin: 'La clínica necesita al menos un administrador activo.',
+      role: 'El rol no se puede cambiar desde aquí.',
+      permission: 'No tienes permiso para hacer este cambio. Vuelve a iniciar sesión.',
+      network: 'Sin conexión con el servidor. Revisa tu internet e inténtalo de nuevo.',
+    },
   },
   demo: {
     loginHint: 'Modo demo: entra con cualquier correo y contraseña.',
