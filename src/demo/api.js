@@ -136,33 +136,64 @@ for (const t of ['demo-t1', 'demo-t2']) {
 }
 const demoTimeOff = []
 
+// Mirrors the database rules so the demo behaves like live (migrations 0700 + 0750).
+function demoError(code, dbMessage) {
+  return Object.assign(new Error(dbMessage), { code, dbMessage, status: code === '42501' ? 403 : 400, fieldErrors: {} })
+}
+const DEMO_STAFF_LIMIT = 6
+
 export async function listStaff() {
   return demoStaff.map((s) => ({ ...s }))
 }
 export async function updateStaff(id, patch) {
   const s = demoStaff.find((x) => x.id === id)
-  Object.assign(s, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)))
+  if (!s) throw demoError('42501', 'not allowed')
+  const next = { ...s, ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) }
+  if (next.role !== s.role) throw demoError('42501', 'staff role cannot be changed from the app')
+  if (next.displayName !== s.displayName) {
+    next.displayName = String(next.displayName).trim()
+    if (!next.displayName) throw demoError('23514', 'staff display_name cannot be blank')
+  }
+  if (s.role === 'admin' && s.active && !next.active && !demoStaff.some((x) => x !== s && x.role === 'admin' && x.active)) {
+    throw demoError('23514', 'last active admin of clinic cannot be removed')
+  }
+  if (!s.active && next.active && demoStaff.filter((x) => x.active).length >= DEMO_STAFF_LIMIT) {
+    throw demoError('23514', `staff limit (${DEMO_STAFF_LIMIT}) reached for clinic`)
+  }
+  Object.assign(s, next)
   return { ...s }
 }
 export async function listStaffHours() {
   return demoHours.map((h) => ({ ...h }))
 }
-export async function addStaffHours(row) {
-  const h = { id: crypto.randomUUID(), ...row }
-  demoHours.push(h)
-  return { ...h }
+// All rows or none, like the single array POST on live; overlap = staff_hours_no_overlap.
+export async function addStaffHours(rows) {
+  const all = [...demoHours]
+  for (const row of rows) {
+    if (row.end <= row.start) throw demoError('23514', 'staff_hours_check')
+    if (all.some((h) => h.staffId === row.staffId && h.weekday === row.weekday && h.start < row.end && row.start < h.end)) {
+      throw demoError('23P01', 'conflicting key value violates exclusion constraint "staff_hours_no_overlap"')
+    }
+    all.push(row)
+  }
+  const added = rows.map((row) => ({ id: crypto.randomUUID(), ...row }))
+  demoHours.push(...added)
+  return added.map((h) => ({ ...h }))
 }
 export async function deleteStaffHours(id) {
-  demoHours.splice(demoHours.findIndex((h) => h.id === id), 1)
+  const i = demoHours.findIndex((h) => h.id === id)
+  if (i >= 0) demoHours.splice(i, 1)
 }
 export async function listTimeOff() {
   return demoTimeOff.map((o) => ({ ...o }))
 }
 export async function addTimeOff(row) {
+  if (row.endDate < row.startDate) throw demoError('23514', 'staff_time_off_check')
   const o = { id: crypto.randomUUID(), reason: '', ...row }
   demoTimeOff.push(o)
   return { ...o }
 }
 export async function deleteTimeOff(id) {
-  demoTimeOff.splice(demoTimeOff.findIndex((o) => o.id === id), 1)
+  const i = demoTimeOff.findIndex((o) => o.id === id)
+  if (i >= 0) demoTimeOff.splice(i, 1)
 }

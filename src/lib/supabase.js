@@ -145,6 +145,8 @@ function throwQueryError(body, status, role) {
         ? strings.errors.signInRequired
         : fallback
   const error = new Error(message)
+  error.code = code
+  error.dbMessage = body?.message ?? ''
   error.status = code === '23505' ? 409 : status
   error.fieldErrors = code === '23505' ? { time: message } : { form: message }
   throw error
@@ -162,17 +164,27 @@ async function rest(role, path, options = {}) {
     throw error
   }
 
-  const response = await fetch(`${url}/rest/v1${path}`, {
-    ...options,
-    method,
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-      ...options.headers,
-    },
-  })
+  let response
+  try {
+    response = await fetch(`${url}/rest/v1${path}`, {
+      ...options,
+      method,
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+        ...options.headers,
+      },
+    })
+  } catch {
+    // fetch only rejects on network failure (offline, DNS, CORS): never show the raw "Failed to fetch".
+    const error = new Error(strings.errors.reach)
+    error.network = true
+    error.status = 0
+    error.fieldErrors = { form: strings.errors.reach }
+    throw error
+  }
   const body = await response.json().catch(() => null)
   if (!response.ok) throwQueryError(body, response.status, role)
   return body
@@ -330,13 +342,23 @@ export async function listStaffHours() {
   }))
 }
 
-export async function addStaffHours({ staffId, weekday, start, end }) {
-  const rows = await rest('staff', '/staff_hours', {
+// One POST with an array: PostgREST inserts it in a single statement, so all rows save or none do.
+export async function addStaffHours(rows) {
+  const saved = await rest('staff', '/staff_hours', {
     method: 'POST',
-    body: JSON.stringify({ clinic_id: clinicId, staff_id: staffId, weekday, start_time: start, end_time: end }),
+    body: JSON.stringify(
+      rows.map(({ staffId, weekday, start, end }) => ({
+        clinic_id: clinicId, staff_id: staffId, weekday, start_time: start, end_time: end,
+      })),
+    ),
   })
-  const row = rows?.[0]
-  return { id: row.id, staffId, weekday, start, end }
+  return (saved ?? []).map((row) => ({
+    id: row.id,
+    staffId: row.staff_id,
+    weekday: row.weekday,
+    start: String(row.start_time).slice(0, 5),
+    end: String(row.end_time).slice(0, 5),
+  }))
 }
 
 export async function deleteStaffHours(id) {

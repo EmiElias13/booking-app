@@ -101,11 +101,12 @@ export async function listStaffHours() {
   return live.listStaffHours()
 }
 
-export async function addStaffHours(row) {
+// rows: [{ staffId, weekday, start, end }], saved atomically (all or none).
+export async function addStaffHours(rows) {
   if (import.meta.env.VITE_DEMO === 'true') {
-    return (await import('../demo/api.js')).addStaffHours(row)
+    return (await import('../demo/api.js')).addStaffHours(rows)
   }
-  return live.addStaffHours(row)
+  return live.addStaffHours(rows)
 }
 
 export async function deleteStaffHours(id) {
