@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   createAppointment,
   getClinicToday,
+  getSlotMinutes,
   isAppConfigured,
   listAppointments,
   listAvailableSlots,
@@ -24,8 +25,11 @@ const EMPTY_TEAM = { staff: [], hours: [], timeOff: [] }
 // Optional extras: if they fail, Approvals still works, just without names/flags.
 async function loadTeam() {
   try {
-    const [staff, hours, timeOff] = await Promise.all([listStaff(), listStaffHours(), listTimeOff()])
-    return { staff, hours, timeOff }
+    // slot_minutes is optional for the review check: if it fails, only start times are checked.
+    const [staff, hours, timeOff, slotMinutes] = await Promise.all([
+      listStaff(), listStaffHours(), listTimeOff(), getSlotMinutes().catch(() => undefined),
+    ])
+    return { staff, hours, timeOff, slotMinutes }
   } catch {
     return EMPTY_TEAM
   }
@@ -160,8 +164,9 @@ export function AppointmentsProvider({ children }) {
     } catch (error) {
       // Slot no longer bookable / therapist gone: re-fetch so the picker shows the new state.
       if (error.status === 409) {
+        // Refetch for the therapist picked NOW: the user may have switched while the request was in flight.
         if (error.code === 'inactive_staff') refresh()
-        else loadSlots(request.staffId)
+        else loadSlots(staffIdRef.current)
       }
       throw error
     }

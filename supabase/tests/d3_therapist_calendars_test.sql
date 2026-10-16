@@ -1,7 +1,7 @@
 -- D3 per-therapist calendars (spec: docs/specs/d3-therapist-calendars.md, §8).
 -- pgTAP, rolls back. Locally: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/d3_therapist_calendars_test.sql
--- Covers migration 20261016000700 (additive). Cutover tests (anon insert gone, per-therapist index,
--- therapist-only visibility) are added with 20261016000800.
+-- Covers 20261016000700 as it behaves after the 0800 cutover (per-therapist "taken"). Cutover-specific
+-- tests (anon insert gone, therapist-only visibility, 0800 pre-check) are in d3_cutover_test.sql.
 begin;
 select * from no_plan();
 
@@ -124,7 +124,7 @@ select is((select count(*)::int from public.get_available_slots('a0000000-0000-4
 select results_eq($$select min(slot_time) || '-' || max(slot_time) from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,(select mon from d3)+7)$$,
   array['08:00-19:00'], 'V2 first 08:00, last 19:00');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3),(select mon from d3))),
-  10, 'V3 taken slots excluded: her 10:00 and Paulina''s 15:00 (clinic-wide until 0800)');
+  11, 'V3 (0800) only her own 10:00 is excluded; Paulina''s 15:00 does not block Francia');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select tue from d3),(select thu from d3))),
   0, 'V4 time-off days have no slots');
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select sun from d3),(select sun from d3))),
@@ -151,19 +151,21 @@ update public.clinics set slot_minutes = 60 where id = 'a0000000-0000-4000-8000-
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),(select mon from d3)+13) s
            where public._slot_problem('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',s.slot_date,s.slot_time) is not null),
   0, 'V11 parity: every available slot passes the request_appointment rule');
--- [C] clinic-wide "taken" until the 0800 cutover (QA gap 1)
+-- [C] per-therapist "taken" after the 0800 cutover
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),(select mon from d3))),
-  7, 'C1 Paulina Mon: 9 minus her 15:00 minus Francia''s 10:00 (clinic-wide until 0800)');
+  8, 'C1 (0800) Paulina Mon: 9 minus only her own 15:00 (Francia''s 10:00 does not block)');
 insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time)
 select 'a0000000-0000-4000-8000-00000000000c','Legado','l@x.com','initial', mon + 7, '09:00' from d3;
 insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, status)
 select 'a0000000-0000-4000-8000-00000000000c','Rechazada','r@x.com','initial', mon + 7, '11:00', 'declined' from d3;
 select is((select count(*)::int from public.get_available_slots('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,(select mon from d3)+7)),
-  11, 'C2 legacy NULL-staff booking hides 09:00; declined 11:00 stays free');
-select throws_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'09:00','P','p@x.com','','initial')$$,
-  'P0001', 'slot_taken', 'C3 request over a legacy NULL-staff booking -> slot_taken');
-select throws_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),'10:00','P','p@x.com','','initial')$$,
-  'P0001', 'slot_taken', 'C4 other therapist, same clinic slot -> slot_taken (until 0800)');
+  12, 'C2 (0800) a NULL-staff legacy row no longer hides a therapist''s slot; declined 11:00 free');
+select lives_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'09:00','P','p@x.com','','initial')$$,
+  'C3 (0800) Francia 09:00 bookable despite a NULL-staff row at that time');
+select throws_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'09:00','Q','q@x.com','','initial')$$,
+  'P0001', 'slot_taken', 'C3b same therapist, same slot again -> slot_taken');
+select lives_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000003',(select mon from d3),'10:00','P','p@x.com','','initial')$$,
+  'C4 (0800) therapist A''s booking does not block therapist B at the same time');
 select lives_ok($$select public.request_appointment('a0000000-0000-4000-8000-00000000000c','a0000000-0000-4000-8000-000000000002',(select mon from d3)+7,'11:00','P','p@x.com','','initial')$$,
   'C5 declined booking does not block');
 
@@ -254,7 +256,7 @@ reset role;
 -- ============ [X] lifecycle (test 14) ============
 reset role;
 update public.staff set active = false where user_id = 'a0000000-0000-4000-8000-000000000002';
-select is((select count(*)::int from public.appointments where staff_id = 'a0000000-0000-4000-8000-000000000002' and status = 'pending'), 2,
+select is((select count(*)::int from public.appointments where staff_id = 'a0000000-0000-4000-8000-000000000002' and status = 'pending'), 3,
   'X1 deactivating a therapist leaves bookings untouched');
 select is((select count(*)::int from public.list_therapists('a0000000-0000-4000-8000-00000000000c')), 1, 'X2 deactivated therapist leaves the public list');
 delete from public.staff where user_id = 'a0000000-0000-4000-8000-000000000002';

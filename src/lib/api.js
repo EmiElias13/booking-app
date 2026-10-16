@@ -130,6 +130,13 @@ export async function listTimeOff() {
   return live.listTimeOff()
 }
 
+export async function getSlotMinutes() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).getSlotMinutes()
+  }
+  return live.getSlotMinutes()
+}
+
 export async function addTimeOff(row) {
   if (import.meta.env.VITE_DEMO === 'true') {
     return (await import('../demo/api.js')).addTimeOff(row)

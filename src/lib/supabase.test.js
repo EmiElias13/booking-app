@@ -42,6 +42,13 @@ describe('guest role rules', () => {
   })
 })
 
+describe('guest allowlist after the 0800 cutover', () => {
+  it('guests can no longer POST /appointments directly (booking goes through request_appointment)', () => {
+    expect(() => api.applyMiddleware('guest', 'POST', '/appointments')).toThrow(/guest cannot POST \/appointments/)
+    expect(() => api.applyMiddleware('guest', 'POST', '/rpc/request_appointment')).not.toThrow()
+  })
+})
+
 describe('staff role rules', () => {
   it.each([
     ['listAppointments', () => api.listAppointments()],
@@ -49,6 +56,7 @@ describe('staff role rules', () => {
     ['listStaff', () => api.listStaff()],
     ['listStaffHours', () => api.listStaffHours()],
     ['listTimeOff', () => api.listTimeOff()],
+    ['getSlotMinutes', () => api.getSlotMinutes()],
   ])("%s without a staff token fails with 'sign in required' and never hits the network", async (_, call) => {
     const err = await call().catch((e) => e)
     expect(err).toBeInstanceOf(Error)
@@ -62,6 +70,22 @@ describe('staff role rules', () => {
     await api.listAppointments()
     expect(calls()[0]).toMatchObject({ method: 'GET', auth: 'Bearer staff-jwt' })
     expect(calls()[0].path).toMatch(/^\/appointments\?clinic_id=eq\./)
+  })
+})
+
+describe('getSlotMinutes', () => {
+  beforeEach(() => {
+    localStorage.setItem(`booking_staff_session:${CLINIC}`, JSON.stringify({ access_token: 'staff-jwt', expires_at: 4102444800 }))
+  })
+  it('reads clinics.slot_minutes for this clinic with the staff token', async () => {
+    fetchMock.mockImplementationOnce(() => okJson([{ slot_minutes: 45 }]))
+    expect(await api.getSlotMinutes()).toBe(45)
+    expect(calls()[0]).toEqual({ path: `/clinics?id=eq.${CLINIC}&select=slot_minutes`, method: 'GET', auth: 'Bearer staff-jwt' })
+  })
+  it('returns undefined when the row is missing or invalid', async () => {
+    expect(await api.getSlotMinutes()).toBeUndefined()
+    fetchMock.mockImplementationOnce(() => okJson([{ slot_minutes: null }]))
+    expect(await api.getSlotMinutes()).toBeUndefined()
   })
 })
 
