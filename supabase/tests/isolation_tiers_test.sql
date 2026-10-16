@@ -1,6 +1,6 @@
 -- PR 2 QA suite: multi-clinic isolation + tiers (plan/staff_limit, roles, has_role, staff_id).
 -- Matches Emiliano's decisions of 2026-10-12:
---   roles: all three see and decide every appointment of their own clinic; only admin manages staff;
+--   roles (D3 0800): admin + front_desk see and decide every appointment of their clinic, a therapist only their own; only admin manages staff;
 --          staff_id is server-only (not settable from the browser).
 --   limits: basico 3, clinica 6, follows plan; per-clinic manual override is service-role/SQL only (admins cannot change it).
 --   downgrade: existing staff stay, new inserts blocked while over the limit.
@@ -13,7 +13,7 @@
 -- Sections: [P] ported 15  [G] guest  [R] RPC  [L] limits  [O] role values  [H] has_role
 --           [M] staff management  [T] therapist  [F] front desk  [S] staff_id  [D] deletes  [N] no past slots today  [V] verifications
 begin;
-select plan(113);
+select plan(119);
 
 -- ============ fixtures (service role) ============
 insert into auth.users (id, email) values
@@ -39,7 +39,7 @@ insert into public.staff (user_id, clinic_id, role) values
   ('aaaaaaaa-0000-4000-8000-000000000003','aaaaaaaa-0000-4000-8000-00000000000c','front_desk'),
   ('aaaaaaaa-0000-4000-8000-000000000004','aaaaaaaa-0000-4000-8000-00000000000c','therapist'),
   ('bbbbbbbb-0000-4000-8000-000000000001','bbbbbbbb-0000-4000-8000-00000000000c','admin');
--- a1: assigned to therapist1, a3: assigned to therapist2, b1: clinic B. (a2 = unassigned, created by anon in P4)
+-- a1: assigned to therapist1, a3: assigned to therapist2, b1: clinic B. (a2 = unassigned legacy row, inserted below after P3)
 insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time, staff_id) values
   ('aaaaaaaa-0000-4000-8000-0000000000a1','aaaaaaaa-0000-4000-8000-00000000000c','Paciente A','a@x.com','initial','Dolor de rodilla',current_date+3,'09:00','aaaaaaaa-0000-4000-8000-000000000002'),
   ('aaaaaaaa-0000-4000-8000-0000000000a3','aaaaaaaa-0000-4000-8000-00000000000c','Paciente A3','a3@x.com','initial','Hombro',current_date+4,'11:00','aaaaaaaa-0000-4000-8000-000000000004'),
@@ -97,14 +97,14 @@ select throws_ok($$insert into public.appointments (clinic_id, client_name, emai
 select ok(not has_function_privilege('anon','public.enforce_staff_limit()','execute') and not has_function_privilege('authenticated','public.enforce_staff_limit()','execute'), 'P17 anon/authenticated cannot execute enforce_staff_limit');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'00:00')$$, '42501', null, 'N1 anon insert for today at a past time is rejected');
 -- N2 can only fail during the clinic's last minute of the day (23:59).
-select lives_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'23:59')$$, 'N2 anon insert for a later time today succeeds');
-select lives_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c') + 1,'08:00')$$, 'N3 anon insert for tomorrow succeeds');
-select ok((select count(*) = 2 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30))
-      and not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30) where slot_time='10:00')
-      and (select count(*) = 0 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+365)),
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c'),'23:59')$$, '42501', null, 'N2 (0800) anon direct insert for later today is rejected: guests use request_appointment');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, phone, service, slot_date, slot_time) values ('eeeeeeee-0000-4000-8000-00000000000c','x','x@example.com','1','x',public.clinic_today('eeeeeeee-0000-4000-8000-00000000000c') + 1,'08:00')$$, '42501', null, 'N3 (0800) anon direct insert for tomorrow is rejected');
+select ok((select count(*) = 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30,'aaaaaaaa-0000-4000-8000-000000000002'))
+      and not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+30,'bbbbbbbb-0000-4000-8000-000000000001'))
+      and (select count(*) = 0 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c',current_date,current_date+365,'aaaaaaaa-0000-4000-8000-000000000002')),
   'P3 get_taken_slots is clinic-scoped and range-capped');
-select lives_ok($$insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-00000000000c','Nuevo','n@x.com','initial','Espalda',current_date+3,'10:00')$$, 'P4 anon can request a slot; same hour allowed across clinics');
-select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-00000000000c','Dup','d@x.com','initial',current_date+3,'09:00')$$, '23505', null, 'P5 double booking in one clinic -> 23505');
+select throws_ok($$insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-00000000000c','Nuevo','n@x.com','initial','Espalda',current_date+3,'10:00')$$, '42501', null, 'P4 (0800) anon cannot insert appointments directly');
+select ok(not has_table_privilege('anon','public.appointments','insert'), 'P5 (0800) anon has no insert privilege on appointments');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, status) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:00','approved')$$, '42501', null, 'P6 anon cannot set status');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date-1,'09:00')$$, '42501', null, 'P7 past date rejected by RLS');
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('dddddddd-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:00')$$, '42501', null, 'P8 unknown clinic rejected');
@@ -114,15 +114,22 @@ select throws_ok($$insert into public.appointments (clinic_id, client_name, emai
 select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, requested_at) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:00',now()-interval '1 year')$$, '42501', null, 'G3 anon cannot backdate requested_at');
 select throws_ok($$update public.appointments set status='approved'$$, '42501', null, 'G4 anon cannot update appointments');
 select throws_ok($$delete from public.appointments$$, '42501', null, 'G5 anon cannot delete appointments');
-select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'9am')$$, '23514', null, 'G6 malformed slot_time rejected');
-select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, notes) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:30',repeat('n',2001))$$, '23514', null, 'G7 oversized notes rejected');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'9am')$$, '42501', null, 'G6 anon direct insert rejected (format check covered as service role in G6b)');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, notes) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:30',repeat('n',2001))$$, '42501', null, 'G7 anon direct insert rejected (length check covered in G7b)');
 select throws_ok($$select 1 from public.staff$$, '42501', null, 'G8 anon cannot read staff');
 select throws_ok($$select public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['admin'])$$, '42501', null, 'G9 anon cannot execute has_role');
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('cccccccc-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-00000000000c')$$, '42501', null, 'G10 anon cannot add staff');
-select is(pg_get_function_result('public.get_taken_slots(uuid,date,date)'::regprocedure), 'TABLE(slot_date date, slot_time text)', 'R1 get_taken_slots returns only slot_date, slot_time (no id/name/email/status/notes/staff_id)');
-select is((select count(*)::int from public.get_taken_slots('bbbbbbbb-0000-4000-8000-00000000000c',current_date,current_date+30)), 1, 'R2 clinic B availability = only its own 1 slot');
-select is((select count(*)::int from public.get_taken_slots('dddddddd-0000-4000-8000-0000000000dc',current_date,current_date+30)), 0, 'R3 empty clinic returns nothing');
+select is(pg_get_function_result('public.get_taken_slots(uuid,date,date,uuid)'::regprocedure), 'TABLE(slot_date date, slot_time text)', 'R1 get_taken_slots returns only slot_date, slot_time (no id/name/email/status/notes/staff_id)');
+select is((select count(*)::int from public.get_taken_slots('bbbbbbbb-0000-4000-8000-00000000000c',current_date,current_date+30,'bbbbbbbb-0000-4000-8000-000000000001')), 1, 'R2 clinic B availability = only its own 1 slot');
+select is((select count(*)::int from public.get_taken_slots('dddddddd-0000-4000-8000-0000000000dc',current_date,current_date+30,'aaaaaaaa-0000-4000-8000-000000000002')), 0, 'R3 empty clinic returns nothing');
+select ok(to_regprocedure('public.get_taken_slots(uuid,date,date)') is null, 'R4 (0900) clinic-wide 3-arg get_taken_slots is gone');
 reset role;
+insert into public.appointments (id, clinic_id, client_name, email, service, notes, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-0000000000a2','aaaaaaaa-0000-4000-8000-00000000000c','Nuevo','n@x.com','initial','Espalda',current_date+3,'10:00');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, staff_id) values ('aaaaaaaa-0000-4000-8000-00000000000c','Dup','d@x.com','initial',current_date+3,'09:00','aaaaaaaa-0000-4000-8000-000000000002')$$, '23505', null, 'P5b same therapist, same slot -> 23505');
+select lives_ok($$insert into public.appointments (id, clinic_id, client_name, email, service, slot_date, slot_time, staff_id) values ('aaaaaaaa-0000-4000-8000-0000000000a9','aaaaaaaa-0000-4000-8000-00000000000c','Otro','o@x.com','initial',current_date+3,'09:00','aaaaaaaa-0000-4000-8000-000000000004')$$, 'P5c (0800) other therapist, same slot -> OK');
+delete from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a9';
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'9am')$$, '23514', null, 'G6b malformed slot_time rejected');
+select throws_ok($$insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time, notes) values ('aaaaaaaa-0000-4000-8000-00000000000c','X','x@x.com','initial',current_date+6,'09:30',repeat('n',2001))$$, '23514', null, 'G7b oversized notes rejected');
 
 -- ============ admin of clinic A ============
 set local role authenticated;
@@ -142,8 +149,12 @@ select ok(not coalesce(public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', a
 select ok(not coalesce(public.has_role(null, array['admin']), false), 'H5 null clinic -> false');
 -- [M] staff management
 select lives_ok($$insert into public.staff (user_id, clinic_id, role) values ('aaaaaaaa-0000-4000-8000-000000000005','aaaaaaaa-0000-4000-8000-00000000000c','front_desk')$$, 'M1 admin adds staff to own clinic');
-update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c';
-select is((select role from public.staff where user_id='aaaaaaaa-0000-4000-8000-000000000005'), 'therapist', 'M2 admin changes a role in own clinic');
+-- 20261016000750: roles are no longer changed from the app (admin picks one on insert only).
+select throws_ok($$update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c'$$, '42501', null, 'M2 admin cannot change a role (service role only since 0750)');
+reset role;
+update public.staff set role='therapist' where user_id='aaaaaaaa-0000-4000-8000-000000000005' and clinic_id='aaaaaaaa-0000-4000-8000-00000000000c';  -- same end state as before 0750
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select throws_ok($$insert into public.staff (user_id, clinic_id) values ('aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-00000000000c')$$, '42501', null, 'M3 admin A cannot add staff to clinic B');
 update public.staff set role='front_desk' where clinic_id='bbbbbbbb-0000-4000-8000-00000000000c';  -- verified in V2
 select throws_ok($$update public.staff set clinic_id='bbbbbbbb-0000-4000-8000-00000000000c' where user_id='aaaaaaaa-0000-4000-8000-000000000005'$$, '42501', null, 'M4 admin A cannot move staff into clinic B');
@@ -162,10 +173,9 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select ok(public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['therapist']) and not public.has_role('aaaaaaaa-0000-4000-8000-00000000000c', array['admin']), 'H6 therapist: true only for therapist');
-select is((select array_agg(id order by id)::text from public.appointments), '{aaaaaaaa-0000-4000-8000-0000000000a1,aaaaaaaa-0000-4000-8000-0000000000a2,aaaaaaaa-0000-4000-8000-0000000000a3}', 'T1 therapist sees every appointment of own clinic (own, unassigned, other therapist''s)');
-select is((select notes from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'Hombro', 'T2 therapist sees (incl. notes) an appointment assigned to another therapist');
-update public.appointments set status='approved' where id='aaaaaaaa-0000-4000-8000-0000000000a2';
-select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a2'), 'approved', 'T3 therapist can approve an unassigned appointment');
+select is((select array_agg(id order by id)::text from public.appointments), '{aaaaaaaa-0000-4000-8000-0000000000a1}', 'T1 (0800) therapist sees only own appointments (not unassigned, not other therapist''s)');
+select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 0, 'T2 (0800) therapist cannot read another therapist''s appointment');
+update public.appointments set status='approved' where id='aaaaaaaa-0000-4000-8000-0000000000a2';  -- verified in T3
 update public.appointments set status='declined', staff_note='Lo siento' where id='aaaaaaaa-0000-4000-8000-0000000000a1';
 select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 'declined', 'T4 therapist can decline own appointment');
 update public.appointments set status='declined' where id='aaaaaaaa-0000-4000-8000-0000000000a3';  -- verified in V3
@@ -180,10 +190,12 @@ reset role;
 -- ============ therapist 2 of clinic A ============
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0000-4000-8000-000000000004","role":"authenticated"}',true);
-select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 1, 'T6 therapist 2 sees therapist 1''s appointment');
-select is((select count(*)::int from public.appointments), 3, 'T7 therapist 2 sees the whole clinic and nothing else');
+select is((select count(*)::int from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a1'), 0, 'T6 (0800) therapist 2 cannot see therapist 1''s appointment');
+select is((select count(*)::int from public.appointments), 1, 'T7 (0800) therapist 2 sees only own row');
+select throws_ok($$update public.appointments set staff_id='aaaaaaaa-0000-4000-8000-000000000004' where id='aaaaaaaa-0000-4000-8000-0000000000a3'$$, '42501', null, 'T8 therapist cannot reassign staff_id');
 reset role;
-select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'declined', 'V3 therapist 1 can decide therapist 2''s appointment');
+select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a3'), 'pending', 'V3 (0800) therapist 1 could not decide therapist 2''s appointment');
+select is((select status from public.appointments where id='aaaaaaaa-0000-4000-8000-0000000000a2'), 'pending', 'T3 (0800) therapist could not approve an unassigned appointment');
 select is((select role from public.staff where user_id='aaaaaaaa-0000-4000-8000-000000000002'), 'therapist', 'V4 therapist could not self-escalate to admin');
 select is((select count(*)::int from public.staff where clinic_id='aaaaaaaa-0000-4000-8000-00000000000c'), 5, 'V5 therapist could not delete staff');
 

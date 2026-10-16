@@ -35,7 +35,6 @@ Branding and clinic-specific options live in `src/config/clinic.config.js`:
 | `accentDeep` | Dark accent (hover, strong text) |
 | `phonePlaceholder` | Placeholder on the booking phone field |
 | `services` | `{ id, label }` options for the booking form |
-| `timeSlots` | Bookable times (`HH:MM`) |
 | `strings` | Copy overrides, deep-merged over `src/i18n/strings.js` (arrays replace) |
 | `contact` | Clinic contact details object |
 | `clinicId` | From `VITE_CLINIC_ID` (this clinic’s id in the shared clinics table) |
@@ -74,9 +73,11 @@ copies `public/` over the template's and sets `CLINIC_CONFIG_PATH` for `vite bui
 Without a clinic repo the build is the plain "Tu Clínica" template.
 
 Keys: `name`, `shortName`, `logo` (path in `public/`), `logoAlt`, `locale`, `themeColor`,
-`accentSoft`, `accentDeep`, `phonePlaceholder`, `services`, `timeSlots`, `strings`
+`accentSoft`, `accentDeep`, `phonePlaceholder`, `services`, `strings`
 (deep-merged over `src/i18n/strings.js`), `contact`. Arrays replace the defaults.
 `clinicId` is ignored here; it only comes from the `CLINIC_ID` variable.
+`timeSlots` is no longer used (ignored if present): bookable times come from each therapist's
+hours, set by the clinic admin in Equipo, in steps of `clinics.slot_minutes`.
 
 **The config is public in the bundle. Never put secrets (service_role keys etc.) in it.**
 

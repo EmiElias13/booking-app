@@ -33,26 +33,17 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok: anon cannot read clinics';
 end $$;
 
-do $$ declare n int; begin
-  select count(*) into n from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c', current_date, current_date + 30);
-  assert n = 1, 'FAIL: clinic A should have exactly 1 taken slot, got ' || n;
-  assert not exists (select 1 from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c', current_date, current_date + 30) where slot_time = '10:00'),
-    'FAIL: clinic B slot leaked into clinic A availability';
-  select count(*) into n from public.get_taken_slots('aaaaaaaa-0000-4000-8000-00000000000c', current_date, current_date + 365);
-  assert n = 0, 'FAIL: oversized range should return nothing';
-  raise notice 'ok: get_taken_slots is clinic-scoped and range-capped';
+do $$ begin
+  assert to_regprocedure('public.get_taken_slots(uuid,date,date)') is null, 'FAIL: clinic-wide 3-arg get_taken_slots still exists (0900)';
+  raise notice 'ok: clinic-wide get_taken_slots removed (per-therapist version covered in d3 tests)';
 end $$;
 
--- valid request into clinic A, same hour as clinic B's booking (index includes clinic_id)
-insert into public.appointments (id, clinic_id, client_name, email, service, slot_date, slot_time)
-values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'aaaaaaaa-0000-4000-8000-00000000000c', 'Nuevo', 'n@x.com', 'initial', current_date + 3, '10:00');
-do $$ begin raise notice 'ok: anon can request a slot; same hour allowed across clinics'; end $$;
-
+-- D3 0800: guests cannot insert directly any more (they book via request_appointment).
 do $$ begin
-  insert into public.appointments (clinic_id, client_name, email, service, slot_date, slot_time)
-  values ('aaaaaaaa-0000-4000-8000-00000000000c', 'Dup', 'd@x.com', 'initial', current_date + 3, '09:00');
-  raise exception 'FAIL: double booking allowed';
-exception when unique_violation then raise notice 'ok: double booking in one clinic -> 23505';
+  insert into public.appointments (id, clinic_id, client_name, email, service, slot_date, slot_time)
+  values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'aaaaaaaa-0000-4000-8000-00000000000c', 'Nuevo', 'n@x.com', 'initial', current_date + 3, '10:00');
+  raise exception 'FAIL: anon direct insert allowed';
+exception when insufficient_privilege then raise notice 'ok: anon cannot insert appointments directly (0800)';
 end $$;
 
 do $$ begin
@@ -84,6 +75,10 @@ exception when not_null_violation or insufficient_privilege then raise notice 'o
 end $$;
 
 reset role;
+
+-- second clinic A row (as service role; guests can no longer insert directly)
+insert into public.appointments (id, clinic_id, client_name, email, service, slot_date, slot_time)
+values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'aaaaaaaa-0000-4000-8000-00000000000c', 'Nuevo', 'n@x.com', 'initial', current_date + 3, '10:00');
 
 -- ---------- staff of clinic A ----------
 set local role authenticated;

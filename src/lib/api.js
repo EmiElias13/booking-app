@@ -45,11 +45,18 @@ export async function getClinicToday() {
   return live.getClinicToday()
 }
 
-export async function listTakenSlots(from, to) {
+export async function listTherapists() {
   if (import.meta.env.VITE_DEMO === 'true') {
-    return (await import('../demo/api.js')).listTakenSlots(from, to)
+    return (await import('../demo/api.js')).listTherapists()
   }
-  return live.listTakenSlots(from, to)
+  return live.listTherapists()
+}
+
+export async function listAvailableSlots(staffId, from, to) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listAvailableSlots(staffId, from, to)
+  }
+  return live.listAvailableSlots(staffId, from, to)
 }
 
 export async function getStaffMembership(userId) {
@@ -78,4 +85,68 @@ export async function updateAppointment(id, patch) {
     return (await import('../demo/api.js')).updateAppointment(id, patch)
   }
   return live.updateAppointment(id, patch)
+}
+
+export async function listStaff() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listStaff()
+  }
+  return live.listStaff()
+}
+
+export async function updateStaff(id, patch) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).updateStaff(id, patch)
+  }
+  return live.updateStaff(id, patch)
+}
+
+export async function listStaffHours() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listStaffHours()
+  }
+  return live.listStaffHours()
+}
+
+// rows: [{ staffId, weekday, start, end }], saved atomically (all or none).
+export async function addStaffHours(rows) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).addStaffHours(rows)
+  }
+  return live.addStaffHours(rows)
+}
+
+export async function deleteStaffHours(id) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).deleteStaffHours(id)
+  }
+  return live.deleteStaffHours(id)
+}
+
+export async function listTimeOff() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).listTimeOff()
+  }
+  return live.listTimeOff()
+}
+
+export async function getSlotMinutes() {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).getSlotMinutes()
+  }
+  return live.getSlotMinutes()
+}
+
+export async function addTimeOff(row) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).addTimeOff(row)
+  }
+  return live.addTimeOff(row)
+}
+
+export async function deleteTimeOff(id) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    return (await import('../demo/api.js')).deleteTimeOff(id)
+  }
+  return live.deleteTimeOff(id)
 }

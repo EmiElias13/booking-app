@@ -629,6 +629,32 @@ textarea {
   color: var(--danger);
 }
 
+.status-review {
+  background: #fdf1d8;
+  color: var(--warning);
+  border: 1px solid currentColor;
+}
+
+.approval-badges {
+  display: flex;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.approval-review {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+
+.approval-therapist {
+  margin-top: 12px;
+  max-width: 320px;
+}
+
 .request-list,
 .approval-list {
   list-style: none;
@@ -961,4 +987,25 @@ textarea {
   .btn-ghost:active:not(:disabled) {
     background: #f3eef6;
   }
+}
+
+/* Equipo: tap-friendly checkbox label and icon buttons (≥44px targets at any width). */
+.tap-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.tap-target input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+}
+
+.btn-icon {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  line-height: 1;
 }

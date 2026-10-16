@@ -9,7 +9,8 @@ const configPath = process.env.CLINIC_CONFIG_PATH
 // Only known keys reach the bundle; anything else (incl. clinicId, which only
 // ever comes from VITE_CLINIC_ID) is dropped.
 const ALLOWED_KEYS = ['name', 'shortName', 'logo', 'logoAlt', 'locale', 'themeColor', 'accent', 'accentSoft',
-  'accentDeep', 'phonePlaceholder', 'services', 'slots', 'timeSlots', 'strings', 'contact']
+  'accentDeep', 'phonePlaceholder', 'services', 'slots', 'strings', 'contact']
+// `timeSlots` was retired in D3: slots now come from each therapist's hours (get_available_slots).
 const raw = configPath ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {}
 const clinic = Object.fromEntries(ALLOWED_KEYS.filter((k) => Object.hasOwn(raw, k)).map((k) => [k, raw[k]]))
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)

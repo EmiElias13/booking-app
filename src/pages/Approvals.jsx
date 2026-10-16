@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { formatDate, serviceLabel } from '../data/clinic.js'
+import { clinicTimeHHMM, formatDate, serviceLabel } from '../data/clinic.js'
 import { useCountUp } from '../hooks/useCountUp.js'
 import { strings } from '../i18n/strings.js'
 import { useAppointments } from '../store/appointments.jsx'
+import { useAuth } from '../store/auth.jsx'
+import { UNASSIGNED, matchesTherapist, missingTherapistIds, reviewReasons, therapistLabel, therapistOptions } from '../store/approvalsLogic.js'
 
 const FILTERS = [
   { id: 'pending', label: strings.approvals.filters.pending },
@@ -18,8 +20,10 @@ function prefersReducedMotion() {
 }
 
 export default function Approvals() {
-  const { appointments, loading, apiError, decide } = useAppointments()
+  const { appointments: allAppointments, team, clinicToday, loading, apiError, decide } = useAppointments()
+  const { staffRole } = useAuth()
   const [filter, setFilter] = useState('pending')
+  const [therapistFilter, setTherapistFilter] = useState('')
   const [notes, setNotes] = useState({})
   const [busyIds, setBusyIds] = useState({})
   const [leaving, setLeaving] = useState({})
@@ -27,6 +31,24 @@ export default function Approvals() {
   const filterRowRef = useRef(null)
   const chipRefs = useRef({})
   const [indicator, setIndicator] = useState({ x: 0, y: 0, width: 0, height: 0 })
+
+  // Admin/front desk pick a therapist; therapists only get their own bookings (RLS), so no filter for them.
+  const canFilterTherapist = staffRole === 'admin' || staffRole === 'front_desk'
+  const therapists = useMemo(() => therapistOptions(team.staff), [team.staff])
+  const hasUnassigned = allAppointments.some((appointment) => !appointment.staffId)
+  const activeTherapistFilter = canFilterTherapist ? therapistFilter : ''
+
+  const appointments = useMemo(
+    () => allAppointments.filter((appointment) => matchesTherapist(appointment, activeTherapistFilter)),
+    [allAppointments, activeTherapistFilter],
+  )
+
+  const missingTherapists = useMemo(() => missingTherapistIds(allAppointments, team.staff), [allAppointments, team.staff])
+  const staffName = (staffId) =>
+    therapistLabel(staffId, team.staff, { unassigned: strings.approvals.unassigned, missing: strings.approvals.missingTherapist })
+
+  const nowHHMM = clinicTimeHHMM()
+  const reviewFor = (appointment) => reviewReasons(appointment, { ...team, today: clinicToday, nowHHMM })
 
   const counts = useMemo(
     () => ({
@@ -185,95 +207,138 @@ export default function Approvals() {
         ))}
       </div>
 
+      {canFilterTherapist && therapists.length > 0 && (
+        <label className="field approval-therapist enter enter-delay-2">
+          <span>{strings.approvals.therapist}</span>
+          <select value={therapistFilter} onChange={(event) => setTherapistFilter(event.target.value)}>
+            <option value="">{strings.approvals.allTherapists}</option>
+            {therapists.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.active ? member.displayName : `${member.displayName} ${strings.approvals.inactiveSuffix}`}
+              </option>
+            ))}
+            {missingTherapists.map((id) => (
+              <option key={id} value={id}>
+                {strings.approvals.missingTherapist}
+              </option>
+            ))}
+            {hasUnassigned && <option value={UNASSIGNED}>{strings.approvals.unassigned}</option>}
+          </select>
+        </label>
+      )}
+
       {loading ? (
         <p className="empty enter enter-delay-2">{strings.approvals.loading}</p>
       ) : visible.length === 0 ? (
-        <p className="empty enter enter-delay-2">{strings.approvals.empty}</p>
+        <p className="empty enter enter-delay-2">
+          {activeTherapistFilter && allAppointments.length > 0 ? strings.approvals.emptyFiltered : strings.approvals.empty}
+        </p>
       ) : (
         <ul className="approval-list enter enter-delay-2">
-          {visible.map((appointment) => (
-            <li
-              key={appointment.id}
-              className={`card approval card-lift${leaving[appointment.id] ? ' approval-exit' : ''}`}
-            >
-              <div className="approval-head">
-                <div>
-                  <strong>
-                    {formatDate(appointment.date)} · {appointment.time}
-                  </strong>
-                  <span className="muted">{serviceLabel(appointment.service)}</span>
-                </div>
-                <span key={appointment.status} className={`status status-${appointment.status}`}>
-                  {strings.status[appointment.status] ?? appointment.status}
-                </span>
-              </div>
-
-              <dl className="approval-meta">
-                <div>
-                  <dt>{strings.approvals.client}</dt>
-                  <dd>{appointment.clientName}</dd>
-                </div>
-                <div>
-                  <dt>{strings.approvals.email}</dt>
-                  <dd>{appointment.email}</dd>
-                </div>
-                {appointment.phone && (
+          {visible.map((appointment) => {
+            const reasons = reviewFor(appointment)
+            const therapistName = staffName(appointment.staffId)
+            return (
+              <li
+                key={appointment.id}
+                className={`card approval card-lift${leaving[appointment.id] ? ' approval-exit' : ''}`}
+              >
+                <div className="approval-head">
                   <div>
-                    <dt>{strings.approvals.phone}</dt>
-                    <dd>{appointment.phone}</dd>
+                    <strong>
+                      {formatDate(appointment.date)} · {appointment.time}
+                    </strong>
+                    <span className="muted">{serviceLabel(appointment.service)}</span>
                   </div>
+                  <div className="approval-badges">
+                    {reasons.length > 0 && <span className="status status-review">{strings.approvals.review}</span>}
+                    <span key={appointment.status} className={`status status-${appointment.status}`}>
+                      {strings.status[appointment.status] ?? appointment.status}
+                    </span>
+                  </div>
+                </div>
+
+                {reasons.length > 0 && (
+                  <ul className="approval-review" aria-label={strings.approvals.review}>
+                    {reasons.map((reason) => (
+                      <li key={reason}>{strings.approvals.reviewReasons[reason]}</li>
+                    ))}
+                  </ul>
                 )}
-              </dl>
 
-              {appointment.notes && <p className="approval-notes">“{appointment.notes}”</p>}
+                <dl className="approval-meta">
+                  {therapistName && (
+                    <div>
+                      <dt>{strings.approvals.therapist}</dt>
+                      <dd>{therapistName}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt>{strings.approvals.client}</dt>
+                    <dd>{appointment.clientName}</dd>
+                  </div>
+                  <div>
+                    <dt>{strings.approvals.email}</dt>
+                    <dd>{appointment.email}</dd>
+                  </div>
+                  {appointment.phone && (
+                    <div>
+                      <dt>{strings.approvals.phone}</dt>
+                      <dd>{appointment.phone}</dd>
+                    </div>
+                  )}
+                </dl>
 
-              {appointment.status === 'pending' ? (
-                <div className="approval-actions">
-                  <input
-                    value={notes[appointment.id] ?? ''}
-                    onChange={(event) =>
-                      setNotes((current) => ({ ...current, [appointment.id]: event.target.value }))
-                    }
-                    placeholder={strings.approvals.notePh}
-                  />
-                  <div className="approval-buttons">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={Boolean(busyIds[appointment.id])}
-                      onClick={() => handleDecision(appointment, 'approved')}
-                    >
-                      {strings.approvals.approve}
-                    </button>
+                {appointment.notes && <p className="approval-notes">“{appointment.notes}”</p>}
+
+                {appointment.status === 'pending' ? (
+                  <div className="approval-actions">
+                    <input
+                      value={notes[appointment.id] ?? ''}
+                      onChange={(event) =>
+                        setNotes((current) => ({ ...current, [appointment.id]: event.target.value }))
+                      }
+                      placeholder={strings.approvals.notePh}
+                    />
+                    <div className="approval-buttons">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={Boolean(busyIds[appointment.id])}
+                        onClick={() => handleDecision(appointment, 'approved')}
+                      >
+                        {strings.approvals.approve}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={Boolean(busyIds[appointment.id])}
+                        onClick={() => handleDecision(appointment, 'declined')}
+                      >
+                        {strings.approvals.decline}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="approval-actions">
+                    {appointment.staffNote && (
+                      <p className="muted">
+                        {strings.approvals.yourNote} {appointment.staffNote}
+                      </p>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost"
                       disabled={Boolean(busyIds[appointment.id])}
-                      onClick={() => handleDecision(appointment, 'declined')}
+                      onClick={() => handleDecision(appointment, 'pending', appointment.staffNote)}
                     >
-                      {strings.approvals.decline}
+                      {strings.approvals.backToPending}
                     </button>
                   </div>
-                </div>
-              ) : (
-                <div className="approval-actions">
-                  {appointment.staffNote && (
-                    <p className="muted">
-                      {strings.approvals.yourNote} {appointment.staffNote}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={Boolean(busyIds[appointment.id])}
-                    onClick={() => handleDecision(appointment, 'pending', appointment.staffNote)}
-                  >
-                    {strings.approvals.backToPending}
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
