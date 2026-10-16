@@ -17,10 +17,12 @@ describe('Spanish error text for booking/DB error codes', () => {
   })
 
   it('a double-booked slot is rejected with the Spanish slotTaken message on the time field', async () => {
-    const req = { clientName: 'Prueba', email: 'qa@example.com', service: 'initial', date: '2099-01-05', time: '09:00' }
-    await createAppointment(req)
+    // Fixed clock: Thu 2026-10-15. demo-t1 works Mon-Sat 08:00-20:00.
+    const req = { clientName: 'Prueba', email: 'qa@example.com', service: 'initial', staffId: 'demo-t1', date: '2026-10-21', time: '09:00' }
+    await expect(createAppointment(req)).resolves.toMatchObject({ status: 'pending' })
     const err = await createAppointment(req).catch((e) => e)
     expect(err.status).toBe(409)
+    expect(err.code).toBe('slot_taken')
     expect(err.fieldErrors.time).toBe('Alguien acaba de apartar este horario. Elige otro.')
   })
 })
