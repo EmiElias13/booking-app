@@ -85,7 +85,7 @@ describe('Home picker loading and accessibility', () => {
     fireEvent.change(screen.getByLabelText(strings.home.name), { target: { value: 'Ana' } })
     fireEvent.change(screen.getByLabelText(strings.home.email), { target: { value: 'ana@ejemplo.com' } })
     fireEvent.click(screen.getByRole('button', { name: strings.home.submit }))
-    expect(screen.getByRole('button', { name: '10:00' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '10:00' }).closest('fieldset')).toHaveFocus()
   })
 
   it('marks the chosen time with aria-pressed', () => {

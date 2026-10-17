@@ -48,9 +48,8 @@ export default function Home() {
   function focusFirstError(nextErrors) {
     const field = FIELD_ORDER.find((name) => nextErrors[name])
     if (!field) return
-    const node =
-      field === 'time' ? fieldRefs.current.time?.querySelector('.slot') ?? fieldRefs.current.time : fieldRefs.current[field]
-    node?.focus()
+    // For time, focus the slots group: its :focus ring shows for mouse and keyboard alike.
+    fieldRefs.current[field]?.focus()
   }
 
   // The server already drops started slots; this keeps an open tab from offering them later in the day.
