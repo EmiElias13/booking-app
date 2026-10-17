@@ -208,6 +208,9 @@ export async function getSlotMinutes() {
 export async function listTimeOff() {
   return demoTimeOff.map((o) => ({ ...o }))
 }
+export async function listTimeOffDates() {
+  return demoTimeOff.map(({ staffId, startDate, endDate }) => ({ staffId, startDate, endDate }))
+}
 export async function addTimeOff(row) {
   if (row.endDate < row.startDate) throw demoError('23514', 'staff_time_off_check')
   const o = { id: crypto.randomUUID(), reason: '', ...row }

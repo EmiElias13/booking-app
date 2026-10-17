@@ -21,6 +21,10 @@ const emptyForm = {
   notes: '',
 }
 
+const FIELD_ORDER = ['clientName', 'email', 'therapist', 'date', 'time']
+const errorId = (field) => `booking-error-${field}`
+const describedBy = (errors, field) => (errors[field] ? errorId(field) : undefined)
+
 export default function Home() {
   const {
     myRequests: sessionRequests, apiError, requestSlot, clinicToday, loading,
@@ -35,6 +39,18 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false)
 
   const pickedByHand = useRef(false)
+  const fieldRefs = useRef({})
+  const fieldRef = (field) => (node) => {
+    fieldRefs.current[field] = node
+  }
+
+  // Order matches the form, so focus lands on the first invalid field on screen.
+  function focusFirstError(nextErrors) {
+    const field = FIELD_ORDER.find((name) => nextErrors[name])
+    if (!field) return
+    // For time, focus the slots group: its :focus ring shows for mouse and keyboard alike.
+    fieldRefs.current[field]?.focus()
+  }
 
   // The server already drops started slots; this keeps an open tab from offering them later in the day.
   const [nowHHMM, setNowHHMM] = useState(clinicTimeHHMM)
@@ -106,7 +122,10 @@ export default function Home() {
     event.preventDefault()
     const nextErrors = validate()
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0) {
+      focusFirstError(nextErrors)
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -128,11 +147,9 @@ export default function Home() {
       setConfirmation(null)
       // The store refetches slots; drop the rejected time so it can't be resubmitted.
       if (isSlotRejected(error)) setTime('')
-      setErrors(
-        Object.keys(error.fieldErrors ?? {}).length > 0
-          ? error.fieldErrors
-          : { form: strings.errors.send },
-      )
+      const hasFieldErrors = Object.keys(error.fieldErrors ?? {}).length > 0
+      setErrors(hasFieldErrors ? error.fieldErrors : { form: strings.errors.send })
+      if (hasFieldErrors) focusFirstError(error.fieldErrors)
     } finally {
       setSubmitting(false)
     }
@@ -174,8 +191,14 @@ export default function Home() {
               placeholder={strings.home.namePh}
               autoComplete="name"
               aria-invalid={Boolean(errors.clientName)}
+              aria-describedby={describedBy(errors, 'clientName')}
+              ref={fieldRef('clientName')}
             />
-            {errors.clientName && <small className="error">{errors.clientName}</small>}
+            {errors.clientName && (
+              <small className="error" id={errorId('clientName')}>
+                {errors.clientName}
+              </small>
+            )}
           </label>
 
           <label className={`field${errors.email ? ' error-shake' : ''}`}>
@@ -187,8 +210,14 @@ export default function Home() {
               placeholder={strings.home.emailPh}
               autoComplete="email"
               aria-invalid={Boolean(errors.email)}
+              aria-describedby={describedBy(errors, 'email')}
+              ref={fieldRef('email')}
             />
-            {errors.email && <small className="error">{errors.email}</small>}
+            {errors.email && (
+              <small className="error" id={errorId('email')}>
+                {errors.email}
+              </small>
+            )}
           </label>
 
           <label className="field">
@@ -230,10 +259,12 @@ export default function Home() {
               }}
               disabled={therapists.length === 0}
               aria-invalid={Boolean(errors.therapist)}
+              aria-describedby={describedBy(errors, 'therapist')}
+              ref={fieldRef('therapist')}
               required
             >
               <option value="" disabled>
-                {strings.home.therapistPh}
+                {loading && therapists.length === 0 ? strings.home.therapistsLoading : strings.home.therapistPh}
               </option>
               {therapists.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -241,7 +272,11 @@ export default function Home() {
                 </option>
               ))}
             </select>
-            {errors.therapist && <small className="error">{errors.therapist}</small>}
+            {errors.therapist && (
+              <small className="error" id={errorId('therapist')}>
+                {errors.therapist}
+              </small>
+            )}
           </label>
 
           <label className={`field${errors.date ? ' error-shake' : ''}`}>
@@ -256,12 +291,23 @@ export default function Home() {
                 setTime('')
               }}
               aria-invalid={Boolean(errors.date)}
+              aria-describedby={describedBy(errors, 'date')}
+              ref={fieldRef('date')}
             />
-            {errors.date && <small className="error">{errors.date}</small>}
+            {errors.date && (
+              <small className="error" id={errorId('date')}>
+                {errors.date}
+              </small>
+            )}
           </label>
         </div>
 
-        <fieldset className={`field slots${errors.time ? ' error-shake' : ''}`}>
+        <fieldset
+          className={`field slots${errors.time ? ' error-shake' : ''}`}
+          ref={fieldRef('time')}
+          tabIndex={-1}
+          aria-describedby={describedBy(errors, 'time')}
+        >
           <legend>
             {strings.home.slots} {date && <em>· {formatDate(date)}</em>}
           </legend>
@@ -290,6 +336,11 @@ export default function Home() {
             </div>
           )}
           {therapists.length > 0 && !therapistId && <p className="muted">{strings.home.pickTherapistFirst}</p>}
+          {therapistId && slotsLoading && !slotsError && (
+            <p className="muted" role="status">
+              {strings.home.slotsLoading}
+            </p>
+          )}
           {therapistId && jumpedPastToday && <p className="muted">{strings.home.todayFull}</p>}
           {therapistId && !slotsLoading && !slotsError && !firstOpenDay && (
             <div className="muted">
@@ -311,6 +362,7 @@ export default function Home() {
                 key={slot}
                 type="button"
                 className={`slot${time === slot ? ' slot-selected' : ''}`}
+                aria-pressed={time === slot}
                 onClick={() => {
                   setTime(slot)
                   setErrors((current) => ({ ...current, time: undefined }))
@@ -323,7 +375,11 @@ export default function Home() {
           {therapistId && !slotsLoading && !slotsError && firstOpenDay && daySlots.length === 0 && (
             <p className="muted">{strings.home.dayClosed}</p>
           )}
-          {errors.time && <small className="error">{errors.time}</small>}
+          {errors.time && (
+            <small className="error" id={errorId('time')}>
+              {errors.time}
+            </small>
+          )}
         </fieldset>
 
         <label className="field">
@@ -338,7 +394,11 @@ export default function Home() {
           />
         </label>
 
-        {errors.form && <small className="error error-shake">{errors.form}</small>}
+        {errors.form && (
+          <small className="error error-shake" role="alert">
+            {errors.form}
+          </small>
+        )}
 
         <button
           type="submit"

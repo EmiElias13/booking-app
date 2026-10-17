@@ -41,6 +41,18 @@ describe('offline', () => {
     expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument()
   })
 
+  it('Approvals warns in Spanish and logs when only the team fails to load', async () => {
+    localStorage.setItem(`booking_staff_session:${CLINIC}`, JSON.stringify({ access_token: 'staff-jwt', expires_at: 4102444800, staffRole: 'admin' }))
+    const ok = (body) => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    fetch.mockImplementation((url) => (String(url).includes('/appointments?') ? ok([]) : Promise.reject(new TypeError('Failed to fetch'))))
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderPage(Approvals)
+    expect(await screen.findByText(strings.approvals.teamLoadError)).toBeInTheDocument()
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument()
+    expect(logged).toHaveBeenCalledWith(expect.stringMatching(/team load failed/), expect.objectContaining({ network: true }))
+    logged.mockRestore()
+  })
+
   // KNOWN BUG: authFetch() in src/lib/supabase.js does not catch fetch() rejections, so the raw
   // "Failed to fetch" reaches the Login form. Marked it.fails until the app fix lands (not fixed here).
   it.fails('Login shows Spanish text, not "Failed to fetch" (known bug: authFetch lacks a network catch)', async () => {
