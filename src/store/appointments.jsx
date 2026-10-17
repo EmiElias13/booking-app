@@ -8,7 +8,7 @@ import {
   listAvailableSlots,
   listStaff,
   listStaffHours,
-  listTimeOff,
+  listTimeOffDates,
   listTherapists,
   updateAppointment,
 } from '../lib/api.js'
@@ -27,11 +27,12 @@ async function loadTeam() {
   try {
     // slot_minutes is optional for the review check: if it fails, only start times are checked.
     const [staff, hours, timeOff, slotMinutes] = await Promise.all([
-      listStaff(), listStaffHours(), listTimeOff(), getSlotMinutes().catch(() => undefined),
+      listStaff(), listStaffHours(), listTimeOffDates(), getSlotMinutes().catch(() => undefined),
     ])
     return { staff, hours, timeOff, slotMinutes }
-  } catch {
-    return EMPTY_TEAM
+  } catch (error) {
+    console.error('Approvals: team load failed', error)
+    return { ...EMPTY_TEAM, loadError: true }
   }
 }
 

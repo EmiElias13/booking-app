@@ -416,6 +416,12 @@ export async function listTimeOff() {
   }))
 }
 
+// Approvals only needs who is off and when; `reason` is admin-only (Team page) and never fetched here.
+export async function listTimeOffDates() {
+  const rows = await rest('staff', `/staff_time_off?clinic_id=eq.${clinicId}&select=staff_id,start_date,end_date&order=start_date.asc`)
+  return (rows ?? []).map((row) => ({ staffId: row.staff_id, startDate: row.start_date, endDate: row.end_date }))
+}
+
 export async function addTimeOff({ staffId, startDate, endDate, reason = '' }) {
   const rows = await rest('staff', '/staff_time_off', {
     method: 'POST',

@@ -24,6 +24,8 @@ const baseStrings = {
     noSlotsNoContact: 'Intenta otra fecha o vuelve más tarde',
     loadError: 'No pudimos cargar los horarios. Revisa tu conexión e inténtalo de nuevo.',
     therapistsLoadError: 'No pudimos cargar los fisioterapeutas. Revisa tu conexión e inténtalo de nuevo.',
+    slotsLoading: 'Cargando horarios…',
+    therapistsLoading: 'Cargando fisioterapeutas…',
     retry: 'Reintentar',
     myRequests: 'Tus solicitudes', clinicNote: 'Mensaje de la clínica:',
   },
@@ -74,6 +76,7 @@ const baseStrings = {
     missingTherapist: 'Fisioterapeuta no disponible',
     emptyFiltered: 'No hay solicitudes de este fisioterapeuta en esta lista.',
     review: 'Revisar',
+    teamLoadError: 'No pudimos cargar el equipo. Revisa tu conexión e inténtalo de nuevo.',
     reviewReasons: {
       inactive: 'El fisioterapeuta está inactivo.',
       timeOff: 'Cae en un día libre del fisioterapeuta.',

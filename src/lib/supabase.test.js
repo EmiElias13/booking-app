@@ -55,6 +55,7 @@ describe('staff role rules', () => {
     ['listStaff', () => api.listStaff()],
     ['listStaffHours', () => api.listStaffHours()],
     ['listTimeOff', () => api.listTimeOff()],
+    ['listTimeOffDates', () => api.listTimeOffDates()],
     ['getSlotMinutes', () => api.getSlotMinutes()],
   ])("%s without a staff token fails with 'sign in required' and never hits the network", async (_, call) => {
     const err = await call().catch((e) => e)
@@ -69,6 +70,17 @@ describe('staff role rules', () => {
     await api.listAppointments()
     expect(calls()[0]).toMatchObject({ method: 'GET', auth: 'Bearer staff-jwt' })
     expect(calls()[0].path).toMatch(/^\/appointments\?clinic_id=eq\./)
+  })
+})
+
+describe('listTimeOffDates', () => {
+  it('never asks for reason', async () => {
+    localStorage.setItem(`booking_staff_session:${CLINIC}`, JSON.stringify({ access_token: 'staff-jwt', expires_at: 4102444800 }))
+    fetchMock.mockImplementationOnce(() => okJson([{ staff_id: 't1', start_date: '2099-01-05', end_date: '2099-01-06' }]))
+    const rows = await api.listTimeOffDates()
+    expect(calls()[0].path).toMatch(/^\/staff_time_off\?.*select=staff_id,start_date,end_date&/)
+    expect(calls()[0].path).not.toMatch(/reason/)
+    expect(rows).toEqual([{ staffId: 't1', startDate: '2099-01-05', endDate: '2099-01-06' }])
   })
 })
 

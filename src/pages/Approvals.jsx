@@ -159,6 +159,12 @@ export default function Approvals() {
         <p>{strings.approvals.intro}</p>
       </section>
 
+      {team.loadError && (
+        <div className="banner banner-error" role="alert">
+          {strings.approvals.teamLoadError}
+        </div>
+      )}
+
       {bannerError && (
         <div className="banner banner-error" role="alert">
           {bannerError}

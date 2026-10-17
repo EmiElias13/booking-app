@@ -346,6 +346,17 @@ textarea:focus {
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
+.slots:focus {
+  outline: 2px solid transparent;
+  border-radius: var(--radius, 12px);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.slot:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
 input[aria-invalid='true'] {
   border-color: var(--danger);
 }
